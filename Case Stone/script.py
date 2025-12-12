@@ -7,7 +7,12 @@ from matplotlib.lines import Line2D
 pd.set_option('display.max_columns', None)
 
 #%% Carregando e explorando dados
-df = pd.read_excel('Case_Data_Analyst_Pl.xlsx')
+# Descobre a pasta onde o script.py está
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Monta o caminho completo do Excel relativo a esse script
+file_path = os.path.join(BASE_DIR, "Case_Data_Analyst_Pl.xlsx")
+df = pd.read_excel(file_path)
 
 ### Conhecendo a base 
 df.head()
@@ -937,3 +942,4 @@ df_indicador_anual = (
 
 print("\n=========== INDICADOR DE RETENÇÃO PROJETADO — ANO 2025 ===========\n")
 print(df_indicador_anual.to_string(index=False))
+
