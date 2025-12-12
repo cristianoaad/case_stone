@@ -3,15 +3,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.lines import Line2D
-
-# IMPORTA SEU SCRIPT DE ANÁLISE
-import script  # <- seu arquivo script.py
+import os
+import script 
 
 sns.set(style="whitegrid")
 
-# ------------------------------------------------------------------
-# RECUPERA OBJETOS DO script.py
-# ------------------------------------------------------------------
+APP_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+# RECUPERAR OBJETOS DO script.py
 df = script.df
 df_monthly_macro = script.df_monthly_macro
 bots = script.bots
@@ -42,9 +42,8 @@ df_future_trend = script.df_future_trend
 df_2025_full = script.df_2025_full
 df_indicador_anual = script.df_indicador_anual
 
-# ------------------------------------------------------------------
 # CONFIG STREAMLIT + ESTILO STONE
-# ------------------------------------------------------------------
+
 STONE_GREEN = "#00A94F"
 
 st.set_page_config(
@@ -100,11 +99,12 @@ with tab1:
 
     st.subheader("Código SQL (arquivo Questao1-tabelas_fonte.sql)")
     try:
-        with open("Questao1-tabelas_fonte.sql", "r", encoding="utf-8") as f:
+        sql_path = os.path.join(APP_DIR, "tabelas_fonte.sql")
+        with open(sql_path, "r", encoding="utf-8") as f:
             sql_text = f.read()
         st.code(sql_text, language="sql")
     except FileNotFoundError:
-        st.warning("Arquivo `Questao1-tabelas_fonte.sql` não encontrado na pasta do app.")
+        st.warning("Arquivo `tabelas_fonte.sql` não encontrado na pasta do app.")
 
     st.subheader("Esquema da Tabela `silver_sessions`")
 
@@ -148,15 +148,13 @@ with tab1:
         """
     )
 
-# ------------------------------------------------------------------
+
 # ABA 2 - QUESTÃO 2
-# ------------------------------------------------------------------
+
 with tab2:
     st.header("Questão 2 - Diagnóstico da Retenção & Próximos Passos")
 
-    # =========================
     # 1) CONCLUSÕES GERAIS
-    # =========================
     st.markdown(
 
         """
@@ -191,9 +189,9 @@ with tab2:
         unsafe_allow_html=True,
     )
 
-    # =========================
+ 
     # 2) GRÁFICO HISTÓRICO
-    # =========================
+    
     st.subheader("Histórico Mensal: Retenção x Pedido de Atendimento por Chatbot")
 
     fig_hist, ax = plt.subplots(figsize=(12, 5))
@@ -253,9 +251,9 @@ with tab2:
         """
     )
 
-    # =========================
+   
     # 3) MÊS ATUAL vs HISTÓRICO
-    # =========================
+   
     st.subheader("Mês Atual x Média Histórica (mesma janela de dias)")
     st.dataframe(resumo, use_container_width=True)
 
@@ -268,9 +266,9 @@ Esse comparativo mostra, por bot:
         """
     )
 
-    # =========================
+    
     # 4) PROJEÇÃO DE AGOSTO
-    # =========================
+   
     st.subheader("Projeção de Fechamento de Agosto (por Chatbot)")
     st.dataframe(df_projecoes, use_container_width=True)
 
@@ -284,9 +282,9 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
         """
     )
 
-    # =========================
+   
     # 5) CORRELAÇÃO (NÍVEL MÉDIO)
-    # =========================
+    
     st.subheader("Correlação entre Retenção e Pedido de Atendimento (por Chatbot)")
 
     for bot in bots:
@@ -319,9 +317,9 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
         """
     )
 
-    # =========================
+    
     # 6) DETALHAMENTO EM TABELAS
-    # =========================
+    
     st.subheader("Detalhamento em Tabelas - Mix, Tópicos e Assuntos")
 
     st.markdown(
@@ -437,7 +435,7 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
 
 # ------------------------------------------------------------------
 # ABA 3 - QUESTÃO 3
-# ------------------------------------------------------------------
+
 with tab3:
     st.header("Questão 3 - Projeção da Retenção até o Final de 2025")
 
@@ -510,3 +508,4 @@ Isso captura a tendência recente dos bots sem depender de suposições irreais.
   combinando histórico, projeção de agosto e tendência dos meses futuros.
         """
     )
+
