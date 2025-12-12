@@ -55,6 +55,27 @@ st.set_page_config(
 st.markdown(
     """
     <style>
+    h1, h2, h3 {{
+        color: {STONE_GREEN};
+    }}
+    .stone-box {{
+        background-color: rgba(0, 169, 79, 0.08);
+        padding: 1rem 1.25rem;
+        border-radius: 0.5rem;
+        border-left: 4px solid {STONE_GREEN};
+        margin-bottom: 1rem;
+    }}
+    .stone-badge {{
+        display: inline-block;
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        background-color: rgba(0, 169, 79, 0.12);
+        color: {STONE_GREEN};
+        font-size: 0.8rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }}
+    
     .profile-header {
         background: #052011;          /* verde bem escuro, combinando com Stone */
         border-left: 4px solid #00A85A;
@@ -112,6 +133,20 @@ tab1, tab2, tab3 = st.tabs(
 with tab1:
     st.header("Questão 1 - Construção das Tabelas de Fonte")
 
+    st.markdown(
+        """
+<div class="stone-box">
+<div class="stone-badge">Resumo executivo</div>
+**Resumo da Questão 1**
+
+- A tabela `silver_sessions` guarda o evento transacional por sessão, com flags de retenção e pedido de atendimento.
+- O SELECT agrega para uma granularidade diária por bot / canal / tecnologia / tópico / assunto,
+  que é exatamente a base utilizada nas análises das questões 2 e 3.
+ </div>
+ """,
+        unsafe_allow_html=True,
+    )
+
     st.subheader("Código SQL (arquivo Questao1-tabelas_fonte.sql)")
     try:
         sql_path = os.path.join(APP_DIR, "tabelas_fonte.sql")
@@ -153,15 +188,7 @@ with tab1:
     agg_df = pd.DataFrame(agg_schema, columns=["Coluna", "Tipo", "Descrição"])
     st.dataframe(agg_df, use_container_width=True)
 
-    st.markdown(
-        """
-**Resumo da Questão 1**
-
-- A tabela `silver_sessions` guarda o evento transacional por sessão, com flags de retenção e pedido de atendimento.
-- O SELECT agrega para uma granularidade diária por bot / canal / tecnologia / tópico / assunto,
-  que é exatamente a base utilizada nas análises das questões 2 e 3.
-        """
-    )
+    
 
 
 # ABA 2 - QUESTÃO 2
@@ -170,37 +197,9 @@ with tab2:
     st.header("Questão 2 - Diagnóstico da Retenção & Próximos Passos")
     
 # 1) CONCLUSÕES GERAIS
-    
-    st.subheader("Conclusão da Questão 2 - Próximos Passos Recomendados")
 
-    st.markdown(
-        """
-1. **Investigar profundamente o canal `Chat_C` do BOT_A**
+    st.subheader("Diagnóstico de Agosto")
 
-   - Revisar fluxos, intents e regras de roteamento específicos desse canal.
-   - Validar se há erro de logging ou cálculo de `flag_sessao_retida`.
-   - Amostrar conversas dos dias com retenção zerada para entender se o problema é
-     de experiência do cliente ou de mensuração.
-
-2. **Atacar os tópicos e assuntos críticos mapeados**
-
-   - Focar em segmentos com retenção atual < 20% e queda > 10 p.p. versus o mês anterior.
-   - Para cada um, revisar conteúdo, fluxos de fallback e alterações recentes de negócio.
-
-3. **Monitorar de perto assuntos com performance positiva, mas volátil**
-
-   - Assuntos que melhoraram em agosto, mas ainda têm dias com retenção zerada,
-     indicam inconsistência operacional.
-   - Comparar dias bons vs ruins, checando relação com campanhas e sazonalidade.
-
-4. **Criar rotina de monitoramento (dashboard / alertas)**
-
-   - Acompanhar diariamente retenção por bot / canal / tópico / assunto e volume de sessões.
-   - Implementar alertas para quedas bruscas ou retenção zero em segmentos relevantes.
-        """
-    )
-
-    
     st.markdown(
 
         """
@@ -238,6 +237,35 @@ with tab2:
         """,
         unsafe_allow_html=True,
     )
+    
+    st.subheader("Conclusão da Questão 2 - Próximos Passos Recomendados")
+    st.markdown(
+        """
+1. **Investigar profundamente o canal `Chat_C` do BOT_A**
+
+   - Revisar fluxos, intents e regras de roteamento específicos desse canal.
+   - Validar se há erro de logging ou cálculo de `flag_sessao_retida`.
+   - Amostrar conversas dos dias com retenção zerada para entender se o problema é
+     de experiência do cliente ou de mensuração.
+
+2. **Atacar os tópicos e assuntos críticos mapeados**
+
+   - Focar em segmentos com retenção atual < 20% e queda > 10 p.p. versus o mês anterior.
+   - Para cada um, revisar conteúdo, fluxos de fallback e alterações recentes de negócio.
+
+3. **Monitorar de perto assuntos com performance positiva, mas volátil**
+
+   - Assuntos que melhoraram em agosto, mas ainda têm dias com retenção zerada,
+     indicam inconsistência operacional.
+   - Comparar dias bons vs ruins, checando relação com campanhas e sazonalidade.
+
+4. **Criar rotina de monitoramento (dashboard / alertas)**
+
+   - Acompanhar diariamente retenção por bot / canal / tópico / assunto e volume de sessões.
+   - Implementar alertas para quedas bruscas ou retenção zero em segmentos relevantes.
+        """
+    )
+
 
     # 2) PROJEÇÃO DE AGOSTO
    
@@ -255,7 +283,7 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
     st.dataframe(df_projecoes, use_container_width=True)
     
 # Subdivisão de apendice
-    st.header("Questão 2 -Apêndice: Racional Construído para Diagnóstico")
+    st.header("Apêndice: Racional Construído para Diagnóstico e Prescrição de Próximos Passos")
 
     # 3) GRÁFICO HISTÓRICO
     
@@ -548,6 +576,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
