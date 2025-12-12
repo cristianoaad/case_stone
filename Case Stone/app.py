@@ -490,8 +490,24 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
 with tab3:
     st.header("Questão 3 - Projeção da Retenção até o Final de 2025")
 
-    st.subheader("Projeção Mensal - Setembro a Dezembro (Tendência Linear Pós-Maio)")
+    st.markdown(
+        """
+<div class="stone-box">
+<div class="stone-badge">Resumo executivo questão 3</div>
 
+- O **BOT_A** tende a fechar 2025 em patamar acima do início do ano,
+  sustentando a recuperação pós-maio, desde que as anomalias de canal/tópico sejam endereçadas.
+- O **BOT_B** deve encerrar o ano em nível elevado de retenção, com leve acomodação após o pico de julho,
+  mas ainda acima da média histórica.
+- O indicador anual projetado resume o nível esperado de eficiência de cada bot em 2025,
+  combinando histórico, projeção de agosto e tendência dos meses futuros.
+ </div>
+        """,  
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("Projeção Mensal - Setembro a Dezembro (Tendência Linear Pós-Maio)")
+    
     st.markdown(
          """
 Para projetar setembro a dezembro, adotamos uma abordagem baseada em **tendência linear por chatbot**, apoiada na janela mais recente de dados:
@@ -509,22 +525,6 @@ Por que essa escolha faz sentido aqui?
 
 Em resumo, a projeção por tendência linear captura **para onde os bots parecem estar caminhando hoje**, usando uma metodologia simples, auditável e coerente com a quantidade de dados disponível.
     """
-    )
-
-    st.markdown(
-        """
-<div class="stone-box">
-<div class="stone-badge">Resumo executivo questão 3</div>
-
-- O **BOT_A** tende a fechar 2025 em patamar acima do início do ano,
-  sustentando a recuperação pós-maio, desde que as anomalias de canal/tópico sejam endereçadas.
-- O **BOT_B** deve encerrar o ano em nível elevado de retenção, com leve acomodação após o pico de julho,
-  mas ainda acima da média histórica.
-- O indicador anual projetado resume o nível esperado de eficiência de cada bot em 2025,
-  combinando histórico, projeção de agosto e tendência dos meses futuros.
- </div>
-        """,  
-        unsafe_allow_html=True,
     )
     
     st.dataframe(df_future_trend, use_container_width=True)
@@ -574,6 +574,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
