@@ -1,3 +1,4 @@
+import os
 import pandas as pd 
 import numpy as np 
 import matplotlib.pyplot as plt
@@ -942,4 +943,5 @@ df_indicador_anual = (
 
 print("\n=========== INDICADOR DE RETENÇÃO PROJETADO — ANO 2025 ===========\n")
 print(df_indicador_anual.to_string(index=False))
+
 
