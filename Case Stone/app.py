@@ -11,6 +11,34 @@ sns.set(style="whitegrid")
 APP_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
+# HELPER PARA FORMATAR PERCENTUAIS
+
+def format_percent_columns(df: pd.DataFrame, extra_pct_cols=None) -> pd.DataFrame:
+    """
+    - Arredonda para 2 casas os campos de percentual
+    - Acrescenta ' (%)' ao nome da coluna
+    Critério:
+      - Nome da coluna contém 'pct', 'percent', 'percentual', 'taxa' ou '%'
+      - + colunas extras passadas explicitamente em extra_pct_cols
+    """
+    df_fmt = df.copy()
+    pct_cols = [
+        c for c in df_fmt.columns
+        if any(k in c.lower() for k in ["pct", "percent", "percentual", "taxa", "%"])
+    ]
+
+    if extra_pct_cols:
+        for c in extra_pct_cols:
+            if c in df_fmt.columns and c not in pct_cols:
+                pct_cols.append(c)
+
+    if pct_cols:
+        df_fmt[pct_cols] = df_fmt[pct_cols].round(2)
+        df_fmt = df_fmt.rename(columns={c: f"{c} (%)" for c in pct_cols})
+
+    return df_fmt
+
+
 # RECUPERAR OBJETOS DO script.py
 df = script.df
 df_monthly_macro = script.df_monthly_macro
@@ -51,7 +79,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS (aproveite o que você já tinha e adicione isso dentro)
+# CSS
 st.markdown(
     f"""
     <style>
@@ -99,7 +127,6 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
-
 
 # BLOCO FIXO DE HEADER - para todas as abas
 
@@ -187,20 +214,16 @@ with tab1:
     agg_df = pd.DataFrame(agg_schema, columns=["Coluna", "Tipo", "Descrição"])
     st.dataframe(agg_df, use_container_width=True)
 
-    
-
-
+# ------------------------------------------------------------------
 # ABA 2 - QUESTÃO 2
-
+# ------------------------------------------------------------------
 with tab2:
     st.header("Questão 2 - Diagnóstico da Retenção & Próximos Passos")
     
-# 1) CONCLUSÕES GERAIS
-
+    # 1) CONCLUSÕES GERAIS
     st.subheader("Diagnóstico de Agosto")
 
     st.markdown(
-
         """
         <div class="stone-box">
         <div class="stone-badge">Resumo executivo questão 2 - Diagnóstico</div>
@@ -238,7 +261,6 @@ with tab2:
     )
 
     # 2) PROJEÇÃO DE AGOSTO
-   
     st.subheader("Projeção de Fechamento de Agosto (por Chatbot)")
 
     st.markdown(
@@ -250,7 +272,7 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
 - Combina os dois para estimar a **retenção projetada para o mês cheio** por chatbot.
         """
     )
-    st.dataframe(df_projecoes, use_container_width=True)
+    st.dataframe(format_percent_columns(df_projecoes, ['media_dias_1_14', 'proj_dias_15_31', 'retencao_proj_final_agosto']), use_container_width=True)
     
     st.subheader("Conclusão da Questão 2 - Próximos Passos Recomendados")
     st.markdown(
@@ -280,12 +302,10 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
         """
     )
 
-    
-# Subdivisão de apendice
+    # Subdivisão de apêndice
     st.header("Apêndice: Racional Construído para Diagnóstico e Prescrição de Próximos Passos")
 
     # 3) GRÁFICO HISTÓRICO
-    
     st.subheader("Histórico Mensal: Retenção x Pedido de Atendimento por Chatbot")
 
     st.markdown(
@@ -346,7 +366,6 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
     st.pyplot(fig_hist)
 
     # 4) MÊS ATUAL vs HISTÓRICO
-   
     st.subheader("Mês Atual x Média Histórica (mesma janela de dias)")
 
     st.markdown(
@@ -357,10 +376,9 @@ Esse comparativo mostra, por bot:
 - Como está a relação entre retenção e **pedido de atendimento** frente ao mês imediatamente anterior.
         """
     )
-    st.dataframe(resumo, use_container_width=True)
+    st.dataframe(format_percent_columns(resumo), use_container_width=True)
 
     # 5) CORRELAÇÃO (NÍVEL MÉDIO)
-    
     st.subheader("Correlação entre Retenção e Pedido de Atendimento (por Chatbot)")
 
     st.markdown(
@@ -378,6 +396,7 @@ Esse comparativo mostra, por bot:
         col1, col2 = st.columns(2)
         with col1:
             st.write("Matriz de correlação")
+            # aqui NÃO formato, porque correlação não é percentual
             st.dataframe(corr_matrix, use_container_width=True)
         with col2:
             fig_corr, ax_corr = plt.subplots(figsize=(4, 3))
@@ -393,10 +412,7 @@ Esse comparativo mostra, por bot:
             ax_corr.set_title(f"Correlação - {bot}")
             st.pyplot(fig_corr)
 
-
-    
     # 6) DETALHAMENTO EM TABELAS
-    
     st.subheader("Detalhamento em Tabelas - Mix, Tópicos e Assuntos")
 
     st.markdown(
@@ -411,16 +427,16 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
 
     # --- Mix por canal / tecnologia / tópico / assunto ---
     with st.expander("Mix por Fonte (Canal) - mês atual vs anterior"):
-        st.dataframe(df_mix_fonte, use_container_width=True)
+        st.dataframe(format_percent_columns(df_mix_fonte), use_container_width=True)
 
     with st.expander("Mix por Tecnologia - mês atual vs anterior"):
-        st.dataframe(df_mix_tecnologia, use_container_width=True)
+        st.dataframe(format_percent_columns(df_mix_tecnologia), use_container_width=True)
 
     with st.expander("Mix por Tópico da Sessão - mês atual vs anterior"):
-        st.dataframe(df_mix_topico, use_container_width=True)
+        st.dataframe(format_percent_columns(df_mix_topico), use_container_width=True)
 
     with st.expander("Mix por Assunto da Sessão - mês atual vs anterior"):
-        st.dataframe(df_mix_assunto, use_container_width=True)
+        st.dataframe(format_percent_columns(df_mix_assunto), use_container_width=True)
 
     # --- Deep dive Chat_C BOT_A ---
     st.subheader("Deep Dive 1 - Canal `Chat_C` para BOT_A (Retenção Zerada em Agosto)")
@@ -434,7 +450,7 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
         """
     )
 
-    st.dataframe(deep_fonte, use_container_width=True)
+    st.dataframe(format_percent_columns(deep_fonte), use_container_width=True)
    
     # --- Tópicos e assuntos críticos / positivos ---
     st.subheader("Deep Dive 2 - Tópicos e Assuntos Críticos / Positivos")
@@ -457,7 +473,7 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
         if topicos_criticos_por_bot[bot]:
             st.write(pd.DataFrame({"topico_da_sessao": topicos_criticos_por_bot[bot]}))
             st.write("Detalhe dos tópicos críticos (mês de agosto):")
-            st.dataframe(dfs_topicos_criticos[bot], use_container_width=True)
+            st.dataframe(format_percent_columns(dfs_topicos_criticos[bot]), use_container_width=True)
         else:
             st.write("Nenhum tópico crítico identificado.")
 
@@ -465,28 +481,26 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
         if assuntos_criticos_por_bot[bot]:
             st.write(pd.DataFrame({"assunto_da_sessao": assuntos_criticos_por_bot[bot]}))
             st.write("Detalhe dos assuntos críticos (mês de agosto):")
-            st.dataframe(dfs_assuntos_criticos[bot], use_container_width=True)
+            st.dataframe(format_percent_columns(dfs_assuntos_criticos[bot]), use_container_width=True)
         else:
             st.write("Nenhum assunto crítico identificado.")
 
         st.markdown("**Tópicos com variação positiva relevante (retencao_atual_pct > 20 e delta_retencao_pp > 10 p.p.)**")
         if topicos_positivos_por_bot[bot]:
             st.write(pd.DataFrame({"topico_da_sessao": topicos_positivos_por_bot[bot]}))
-            st.dataframe(dfs_topicos_positivos[bot], use_container_width=True)
+            st.dataframe(format_percent_columns(dfs_topicos_positivos[bot]), use_container_width=True)
         else:
             st.write("Nenhum tópico com variação positiva relevante identificado.")
 
         st.markdown("**Assuntos com variação positiva relevante**")
         if assuntos_positivos_por_bot[bot]:
-            st.write(pd.DataFrame({"assunto_da_sessao": assuntos_positivos_por_bot[bot]}))
-            st.dataframe(dfs_assuntos_positivos[bot], use_container_width=True)
+            st.dataframe(format_percent_columns(dfs_assuntos_positivos[bot]), use_container_width=True)
         else:
             st.write("Nenhum assunto com variação positiva relevante identificado.")
 
-    
 # ------------------------------------------------------------------
 # ABA 3 - QUESTÃO 3
-
+# ------------------------------------------------------------------
 with tab3:
     st.header("Questão 3 - Projeção da Retenção até o Final de 2025")
 
@@ -507,14 +521,13 @@ with tab3:
     )
 
     st.subheader("Projeção Mensal - Setembro a Dezembro (Tendência Linear Pós-Maio)")
-    
-    st.dataframe(df_future_trend, use_container_width=True)
-
-    
+    st.dataframe(format_percent_columns(df_future_trend), use_container_width=True)
 
     st.subheader("Série 2025 Completa - Real + Agosto Projetado + Projeção Futura")
-    st.dataframe(df_2025_full.sort_values(["chatbot", "session_month"]),
-                 use_container_width=True)
+    st.dataframe(
+        format_percent_columns(df_2025_full.sort_values(["chatbot", "session_month"])),
+        use_container_width=True,
+    )
 
     st.subheader("Gráfico - Retenção 2025 por Chatbot (Real vs Projetado)")
 
@@ -552,7 +565,10 @@ with tab3:
         st.pyplot(fig_bot)
 
     st.subheader("Indicador Anual Projetado - Retenção Média 2025")
-    st.dataframe(df_indicador_anual, use_container_width=True)
+    st.dataframe(
+        format_percent_columns(df_indicador_anual, extra_pct_cols=["retencao_media_2025"]),
+        use_container_width=True,
+    )
 
     st.subheader("Racional para desenvolvimento da projeção")
     st.markdown(
@@ -615,6 +631,7 @@ Eu decidi **não** usar uma regressão linear simples por alguns motivos:
 Em resumo, eu projetei setembro–dezembro assumindo que **agosto inaugura um novo platô** e que esse platô tende a se comportar de forma parecida com os anteriores do mesmo bot, com pequenos ajustes mensais em vez de uma reta artificial de alta ou queda.
     """ 
     )
+
 
 
 
