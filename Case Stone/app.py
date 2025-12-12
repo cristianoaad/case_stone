@@ -511,7 +511,7 @@ with tab3:
 
 - O **BOT_A** tende a fechar 2025 em patamar acima do início do ano,
   sustentando a recuperação pós-maio, desde que as anomalias de canal/tópico sejam endereçadas.
-- O **BOT_B** deve encerrar o ano em nível elevado de retenção, com leve acomodação após o pico de julho,
+- O **BOT_B** deve encerrar o ano em nível elevado de retenção, com leves oscilações após o pico de julho,
   mas ainda acima da média histórica.
 - O indicador anual projetado resume o nível esperado de eficiência de cada bot em 2025,
   combinando histórico, projeção de agosto e tendência dos meses futuros.
@@ -579,9 +579,8 @@ with tab3:
     st.subheader("Racional para desenvolvimento da projeção")
     st.markdown(
 """
-#### Racional da projeção de setembro a dezembro
-
 Para projetar o restante de 2025, eu não quis depender de um único modelo nem assumir uma reta infinita de crescimento ou queda. Em vez disso, construí **três visões complementares** e, no final, agreguei tudo em um **ensemble**.
+Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma mudança de regime/disrupção da média (com testes de novas tecnologias, mudanças de regras de negócio etc), assumindo que se seguirá um platô a partir do observado entre Maio e Agosto.
 
 ---
 
@@ -642,11 +641,10 @@ Para projetar o restante de 2025, eu não quis depender de um único modelo nem 
 - O ensemble funciona como um **“meio do caminho”** entre essas leituras:
   - reduz a dependência de qualquer modelo isolado;
   - produz um **platô projetado mais crível**, ainda ancorado em agosto, mas com pequenas oscilações mês a mês.
-- No fim das contas, o objetivo não é “acertar o número na vírgula”, e sim construir um **cenário-base coerente com o histórico, fácil de explicar para o negócio** e que sirva como referência para responder:
-  - **“dado o que já aconteceu, o que posso esperar desses bots até o fim de 2025 se nada muito diferente for feito?”**
 
     """ 
     )
+
 
 
 
