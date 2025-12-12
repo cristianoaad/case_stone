@@ -736,7 +736,7 @@ for bot in bots:
 
 
 # 2. Definir meses de interesse (maio em diante)
-# ---------------------------------------------
+
 mes_inicio = "2025-05"
 df_recent = df_daily[df_daily['session_month'] >= mes_inicio]
 
@@ -746,9 +746,9 @@ meses = sorted(df_recent['session_month'].unique())
 # Último mês é agosto (parcial)
 mes_atual = meses[-1]
 
-# ---------------------------------------------
+
 # 3. Função para calcular fatores históricos por chatbot
-# ---------------------------------------------
+
 def calcular_fator_historico(df_recent, chatbot, mes_atual):
     fatores = []
 
@@ -775,9 +775,9 @@ def calcular_fator_historico(df_recent, chatbot, mes_atual):
     return np.mean(fatores)  # fator médio pós-disrupção
 
 
-# ---------------------------------------------
+
 # 4. Projetar agosto por chatbot
-# ---------------------------------------------
+
 projecoes = []
 
 for bot in df_recent['chatbot'].unique():
@@ -812,22 +812,18 @@ print("\n=========== PROJEÇÃO DE AGOSTO — MÉTODO HISTÓRICO (1-14 → 15-31
 print(df_projecoes.to_string(index=False))
 
 #%% Projeção para os meses de setembro a dezembro de 2025 - pergunta 3 
-# ==========================================
 # 1. Garantir que session_month é string
-# ==========================================
 df_monthly_macro["session_month"] = df_monthly_macro["session_month"].astype(str)
 
-# Vamos focar em 2025 e a partir de maio
+# Vamos focar no ano de 2025 para o consolidado anual,
+# mas usaremos todo o histórico disponível (2024+2025) para estimar a tendência.
 df_2025 = df_monthly_macro[df_monthly_macro["session_month"].str.startswith("2025")].copy()
 
-# Meses em ordem
-meses_ordenados = sorted(df_2025["session_month"].unique())
-print("Meses 2025 na base:", meses_ordenados)
+# Meses de 2025 em ordem
+meses_2025_ordenados = sorted(df_2025["session_month"].unique())
+print("Meses 2025 na base:", meses_2025_ordenados)
 
-# Meses que vamos usar pra TREND (maio até agosto)
-meses_trend = [m for m in meses_ordenados if m >= "2025-05" and m <= "2025-08"]
-
-# Mapinha rápido pra nome dos meses futuros
+# Meses futuros (que queremos projetar)
 meses_futuros = ["2025-09", "2025-10", "2025-11", "2025-12"]
 
 # Mapeia {chatbot: retenção projetada para agosto}
@@ -836,48 +832,68 @@ retencao_agosto_proj = {
     for _, row in df_projecoes.iterrows()
 }
 
-# ==========================================
-# 2. Construir série mensal recente (mai–ago_proj) por bot
-# ==========================================
+
+# 2. Construir série histórica até agosto (com agosto projetado) por bot
+#    e ajustar TENDÊNCIA com amortecimento
+
 linhas_future = []
 
+# Base de tendência: todo histórico até agosto (ex.: 2024-06 a 2025-08)
+df_trend_base = df_monthly_macro.copy()
+df_trend_base["session_month"] = df_trend_base["session_month"].astype(str)
+
+# Meses usados na regressão: desde o primeiro mês da série até 2025-08
+meses_trend = sorted(
+    [m for m in df_trend_base["session_month"].unique() if m <= "2025-08"]
+)
+
+# Parâmetros de suavização da tendência
+damping = 0.4       # quanto menor, mais "flat" a tendência
+max_slope_pp = 0.5  # limite de inclinação em pontos percentuais por mês
+
 for bot in bots:
+    # Série do bot ao longo de todos os meses até agosto
+    df_bot_trend = df_trend_base[df_trend_base["chatbot"] == bot].copy()
+
+    x = np.arange(len(meses_trend))  # 0, 1, ..., n-1
     y = []
-    x = np.arange(len(meses_trend))  # 0,1,2,3
 
     for mes in meses_trend:
         if mes == "2025-08":
-            # usa agosto projetado, não o parcial
+            # usa agosto PROJETADO
             y_val = retencao_agosto_proj[bot]
         else:
-            y_val = df_2025.loc[
-                (df_2025["chatbot"] == bot) & (df_2025["session_month"] == mes),
-                "retencao_pct"
+            y_val = df_bot_trend.loc[
+                df_bot_trend["session_month"] == mes, "retencao_pct"
             ].iloc[0]
         y.append(y_val)
 
     y = np.array(y)
 
-    # Caso extremo: se tiver menos de 2 pontos válidos, não dá pra ajustar reta
     if len(y) < 2:
+        # não dá pra ajustar reta com menos de dois pontos
         continue
 
-    # ==========================================
-    # 3. Ajuste de regressão linear (y = a*x + b)
-    # ==========================================
+    # 3. Ajuste de regressão linear (y = a*x + b) na série completa
     a, b = np.polyfit(x, y, 1)   # slope (a), intercept (b)
 
-    # ==========================================
+    # 3.1. Amortecer a inclinação e limitar a variação mensal
+    a_adj = a * damping
+    a_adj = np.clip(a_adj, -max_slope_pp, max_slope_pp)
+
+    # 3.2. Recalcular o intercepto pra garantir que a reta passe pelo ponto de agosto
+    x_last = x[-1]
+    y_last = y[-1]  # valor em agosto (projetado)
+    b_adj = y_last - a_adj * x_last
+
     # 4. Projetar meses futuros (set–dez)
-    # ==========================================
-    x_future = np.arange(len(meses_trend), len(meses_trend) + len(meses_futuros))  # 4..7
-    y_future = a * x_future + b
+    x_future = np.arange(len(meses_trend), len(meses_trend) + len(meses_futuros))
+    y_future = a_adj * x_future + b_adj
 
     # Clampar entre 0 e 100
     y_future = np.clip(y_future, 0, 100)
 
-    # Guardar linhas
-    # Também vamos guardar os meses históricos (incluindo agosto_proj) se quiser juntar tudo depois
+    # Guardar linhas da projeção futura
     for mes, valor in zip(meses_futuros, y_future):
         linhas_future.append({
             "chatbot": bot,
@@ -887,17 +903,18 @@ for bot in bots:
 
 df_future_trend = pd.DataFrame(linhas_future)
 
-print("\n=========== PROJEÇÃO SET–DEZ COM TENDÊNCIA LINEAR (PÓS-MAIO) ===========\n")
+print("\n=========== PROJEÇÃO SET–DEZ COM TENDÊNCIA SUAVIZADA (HISTÓRICO COMPLETO) ===========\n")
 print(df_future_trend.to_string(index=False))
 
 
-# 1) Copiar meses reais de 2025 (jan–jul)
+# 5. Montar série completa de 2025: real + agosto proj + futuro
+# 5.1. Copiar meses reais de 2025 (jan–jul)
 df_2025_real = df_monthly_macro[
     (df_monthly_macro["session_month"].str.startswith("2025")) &
     (df_monthly_macro["session_month"] < "2025-08")
 ][["chatbot", "session_month", "retencao_pct"]].copy()
 
-# 2) Montar agosto projetado no mesmo formato
+# 5.2. Montar agosto projetado no mesmo formato
 df_ago_proj = []
 for _, row in df_projecoes.iterrows():
     df_ago_proj.append({
@@ -907,16 +924,16 @@ for _, row in df_projecoes.iterrows():
     })
 df_ago_proj = pd.DataFrame(df_ago_proj)
 
-# 3) Renomear coluna de projeção futuro para bater com o padrão
+# 5.3. Renomear coluna de projeção futuro para bater com o padrão
 df_future_trend_ren = df_future_trend.rename(columns={"retencao_pct_proj": "retencao_pct"})
 
-# 4) Concatenar tudo: real + agosto_proj + futuro
+# 5.4. Concatenar tudo: real + agosto_proj + futuro
 df_2025_full = pd.concat(
     [df_2025_real, df_ago_proj, df_future_trend_ren],
     ignore_index=True
 )
 
-# 5) Calcular indicador anual (média simples de retenção ao longo do ano)
+# 5.5. Calcular indicador anual (média simples de retenção ao longo do ano)
 df_indicador_anual = (
     df_2025_full
     .groupby("chatbot")["retencao_pct"]
@@ -927,6 +944,7 @@ df_indicador_anual = (
 
 print("\n=========== INDICADOR DE RETENÇÃO PROJETADO — ANO 2025 ===========\n")
 print(df_indicador_anual.to_string(index=False))
+
 
 
 
