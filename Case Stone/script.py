@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.lines import Line2D
+from scipy import stats
+
 
 pd.set_option('display.max_columns', None)
 
@@ -1089,7 +1091,7 @@ df_2025_completo.append(df_projecoes_finais_renamed)
 df_2025_full = pd.concat(df_2025_completo, ignore_index=True)
 
 # Calcular média anual por chatbot
-df_indicador_anual = df_2025_final.groupby('chatbot')['retencao_pct'].mean().reset_index()
+df_indicador_anual = df_2025_full.groupby('chatbot')['retencao_pct'].mean().reset_index()
 df_indicador_anual.columns = ['chatbot', 'retencao_media_2025']
 df_indicador_anual['retencao_media_2025'] = df_indicador_anual['retencao_media_2025'].round(2)
 
@@ -1098,6 +1100,7 @@ print("INDICADOR DE RETENÇÃO PROJETADO - ANO 2025")
 print("="*60)
 print(df_indicador_anual.to_string(index=False))
 print("\n")
+
 
 
 
