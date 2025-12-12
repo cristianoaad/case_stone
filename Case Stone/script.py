@@ -8,9 +8,7 @@ from matplotlib.lines import Line2D
 pd.set_option('display.max_columns', None)
 
 #%% Carregando e explorando dados
-# Descobre a pasta onde o script.py está
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-
 # Monta o caminho completo do Excel relativo a esse script
 file_path = os.path.join(BASE_DIR, "Case_Data_Analyst_Pl.xlsx")
 df = pd.read_excel(file_path)
@@ -98,13 +96,6 @@ ax.set_xlabel('Mês')
 ax.set_ylabel('Percentual (%)')
 plt.xticks(rotation=45)
 ax.grid(True)
-
-# ---------------------------------------------------------
-# CORREÇÃO DA LEGENDA: CRIANDO HANDLES MANUAIS
-# ---------------------------------------------------------
-
-# Criamos objetos de linha "falsos" apenas para a legenda, 
-# garantindo que a cor e o estilo batam exatamente com o que queremos.
 
 custom_lines = [
     # BOT A (Cor A, Sólido)
@@ -437,7 +428,6 @@ def comparar_mix_mes(
     # Outer merge para pegar features que existem só em um dos meses
     resumo_mix = prev.merge(curr, on=feature, how="outer")
 
-    # ------------- PONTO CRÍTICO -------------
     # Preenche com 0 apenas CONTAGENS e shares.
     # NÃO preenche com 0 as colunas de percentual (retencao/pedido),
     # para que fiquem como NaN quando não há sessões.
@@ -480,9 +470,6 @@ def comparar_mix_mes(
         by="delta_retencao_pp", ascending=True
     ).reset_index(drop=True)
 
-    # Se quiser marcar explicitamente linhas “sem mês atual”:
-    # resumo_mix["sem_sessoes_mes_atual"] = resumo_mix["sessoes_total_atual"] == 0
-
     print("\n===============================")
     print(f"Comparação de mix - Chatbot: {chatbot} | Feature: {feature}")
     print(f"Mês atual: {mes_atual} x Mês anterior: {mes_anterior}")
@@ -494,7 +481,7 @@ features = ['fonte', 'tecnologia_do_chatbot', 'topico_da_sessao', 'assunto_da_se
 resultados_por_feature = {}
 
 for feature in features:
-    dfs_bots = []  # aqui vou juntar o resultado de cada bot para essa feature
+    dfs_bots = [] 
 
     for bot in bots:
         df_mix = comparar_mix_mes(
@@ -569,9 +556,6 @@ for marca in marcas:
         df_marca_grouped['retencao_pct'] = ((df_marca_grouped['sessoes_retidas']/ df_marca_grouped['sessoes_total'])* 100).round(2)
         df_marca_grouped['pct_pedido_atendimento'] = ((df_marca_grouped['sessoes_com_pedido_de_atendimento']/ df_marca_grouped['sessoes_total'])* 100).round(2)
 
-        
-
-
 '''
 
 
@@ -643,7 +627,7 @@ for chatbot in bots:
     })
 df_q10 = pd.DataFrame(rows)
 
-#Análise de quantis se mostrou não útil, uma vez que tópicos e assuntos possuem retenção relativamente alta. 
+#Análise de quantis se mostrou não aplicável, uma vez que tópicos e assuntos possuem retenção relativamente alta. 
 #Para capturar outliers, vamos considerar um percentual inferior a 20% de retenção como critério para identificar tópicos e assuntos críticos
 # Além disso, vamos considerar apenas aqueles com delta negativo relevante (abaixo de -10 p.p.) para garantir que houve uma anomalia relevante entre um mês e outro
 
@@ -943,5 +927,6 @@ df_indicador_anual = (
 
 print("\n=========== INDICADOR DE RETENÇÃO PROJETADO — ANO 2025 ===========\n")
 print(df_indicador_anual.to_string(index=False))
+
 
 
