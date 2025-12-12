@@ -814,30 +814,23 @@ print("\n=========== PROJEÇÃO DE AGOSTO — MÉTODO HISTÓRICO (1-14 → 15-31
 print(df_projecoes.to_string(index=False))
 
 #%% Projeção para os meses de setembro a dezembro de 2025 - pergunta 3 
+# ============================================================================
+# FUNÇÕES DE PROJEÇÃO
 
-# %%
 def detectar_mudancas_regime(serie, threshold=2.0):
     """
     Detecta mudanças significativas de regime na série temporal
-    threshold: número de desvios padrão para considerar uma mudança
     """
     deltas = serie.diff()
     std_delta = deltas.std()
     mean_delta = deltas.mean()
-    
-    # Pontos onde houve mudança significativa
     mudancas = abs(deltas - mean_delta) > (threshold * std_delta)
     return mudancas
 
 def projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot):
     """
-    Projeta a retenção considerando:
-    1. Identificação de regimes
-    2. Tendência do regime atual
-    3. Volatilidade histórica
+    Projeta considerando mudanças de regime e tendência atual
     """
-    
-    # Filtrar dados do bot
     df_bot = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
     df_bot['session_month'] = pd.to_datetime(df_bot['session_month'].astype(str))
     df_bot = df_bot.sort_values('session_month')
@@ -846,12 +839,11 @@ def projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot):
     mudancas = detectar_mudancas_regime(df_bot['retencao_pct'])
     indices_mudanca = df_bot[mudancas].index.tolist()
     
-    # Identificar o regime atual (após a última mudança significativa)
+    # Identificar regime atual
     if len(indices_mudanca) > 0:
         ultimo_regime_idx = max(indices_mudanca)
         df_regime_atual = df_bot.loc[ultimo_regime_idx:]
     else:
-        # Se não houver mudanças detectadas, usar últimos 3 meses
         df_regime_atual = df_bot.tail(3)
     
     # Calcular tendência do regime atual
@@ -866,30 +858,26 @@ def projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot):
     # Valor base: projeção de agosto
     valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
     
-    # Calcular volatilidade do regime atual
+    # Volatilidade do regime atual
     volatilidade = df_regime_atual['retencao_pct'].std()
     
     # Projetar setembro a dezembro
-    meses_futuros = pd.date_range('2025-09', '2025-12', freq='M')
+    meses_futuros = ['2025-09', '2025-10', '2025-11', '2025-12']
     projecoes = []
     
     for i, mes in enumerate(meses_futuros, start=1):
-        # Projeção base: continuar tendência do regime atual
-        valor_proj = valor_agosto + (slope * i)
-        
-        # Aplicar decay na tendência (assumir que mudanças se estabilizam)
-        decay_factor = 0.8 ** i  # Reduz o impacto da tendência ao longo do tempo
+        # Projeção base com decay
+        decay_factor = 0.8 ** i
         valor_proj = valor_agosto + (slope * i * decay_factor)
         
-        # Limitar por min/max histórico com margem
+        # Limitar por histórico
         min_hist = df_bot['retencao_pct'].min() - volatilidade
         max_hist = df_bot['retencao_pct'].max() + volatilidade
-        
         valor_proj = np.clip(valor_proj, max(0, min_hist), min(100, max_hist))
         
         projecoes.append({
             'chatbot': bot,
-            'session_month': mes.strftime('%Y-%m'),
+            'session_month': mes,
             'retencao_pct_proj': round(valor_proj, 2),
             'metodo': 'regime_adaptativo'
         })
@@ -898,45 +886,37 @@ def projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot):
 
 def projetar_com_media_movel_ponderada(df_monthly_macro, df_projecoes, bot, janela=3):
     """
-    Projeta usando média móvel ponderada dos últimos meses
-    Dá mais peso aos meses mais recentes
+    Projeta usando média móvel ponderada
     """
-    
     df_bot = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
     df_bot['session_month'] = pd.to_datetime(df_bot['session_month'].astype(str))
     df_bot = df_bot.sort_values('session_month')
     
-    # Valor base: projeção de agosto
     valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
     
-    # Calcular média móvel ponderada dos últimos meses
+    # Média móvel ponderada
     ultimos_valores = df_bot.tail(janela)['retencao_pct'].values
-    pesos = np.array([0.2, 0.3, 0.5])[-len(ultimos_valores):]  # Mais peso nos recentes
-    pesos = pesos / pesos.sum()  # Normalizar
-    
+    pesos = np.array([0.2, 0.3, 0.5])[-len(ultimos_valores):]
+    pesos = pesos / pesos.sum()
     media_ponderada = np.average(ultimos_valores, weights=pesos)
     
-    # Calcular tendência suave
+    # Tendência suave
     if len(ultimos_valores) >= 2:
         tendencia = (ultimos_valores[-1] - ultimos_valores[0]) / len(ultimos_valores)
     else:
         tendencia = 0
     
-    # Projetar setembro a dezembro
-    meses_futuros = pd.date_range('2025-09', '2025-12', freq='M')
+    meses_futuros = ['2025-09', '2025-10', '2025-11', '2025-12']
     projecoes = []
     
     for i, mes in enumerate(meses_futuros, start=1):
-        # Mix entre agosto projetado e média ponderada, com tendência suave
-        peso_agosto = 0.7 * (0.9 ** i)  # Reduz importância de agosto ao longo do tempo
+        peso_agosto = 0.7 * (0.9 ** i)
         valor_proj = (valor_agosto * peso_agosto + media_ponderada * (1 - peso_agosto)) + (tendencia * i * 0.3)
-        
-        # Limitar entre 0 e 100
         valor_proj = np.clip(valor_proj, 0, 100)
         
         projecoes.append({
             'chatbot': bot,
-            'session_month': mes.strftime('%Y-%m'),
+            'session_month': mes,
             'retencao_pct_proj': round(valor_proj, 2),
             'metodo': 'media_movel_ponderada'
         })
@@ -945,161 +925,137 @@ def projetar_com_media_movel_ponderada(df_monthly_macro, df_projecoes, bot, jane
 
 def projetar_conservador(df_monthly_macro, df_projecoes, bot):
     """
-    Projeção conservadora: assume estabilização no valor de agosto
-    com leve convergência para média histórica recente
+    Projeção conservadora com convergência para média histórica
     """
-    
     df_bot = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
-    
-    # Valor base: projeção de agosto
     valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
-    
-    # Média dos últimos 6 meses
     media_recente = df_bot.tail(6)['retencao_pct'].mean()
     
-    # Projetar setembro a dezembro
-    meses_futuros = pd.date_range('2025-09', '2025-12', freq='M')
+    meses_futuros = ['2025-09', '2025-10', '2025-11', '2025-12']
     projecoes = []
     
     for i, mes in enumerate(meses_futuros, start=1):
-        # Convergência gradual para média histórica
-        peso_agosto = 0.9 ** i  # Reduz ao longo do tempo
+        peso_agosto = 0.9 ** i
         valor_proj = valor_agosto * peso_agosto + media_recente * (1 - peso_agosto)
         
         projecoes.append({
             'chatbot': bot,
-            'session_month': mes.strftime('%Y-%m'),
+            'session_month': mes,
             'retencao_pct_proj': round(valor_proj, 2),
             'metodo': 'conservador'
         })
     
     return pd.DataFrame(projecoes)
 
+# ============================================================================
 # EXECUTAR PROJEÇÕES
 
+print("\n" + "="*70)
+print("PROJEÇÕES SET-DEZ/2025 - MÉTODO ENSEMBLE")
+print("="*70 + "\n")
 
-# Lista de bots (assumindo que você tem a variável 'bots' definida)
-# bots = df_monthly_macro['chatbot'].unique()
-
-projecoes_finais = []
+linhas_future = []
 
 for bot in bots:
-    print(f"\n{'='*60}")
-    print(f"PROJEÇÕES PARA {bot}")
-    print(f"{'='*60}\n")
+    print(f"\n--- Projeções para {bot} ---\n")
     
-    # Método 1: Regime Adaptativo
+    # Executar os 3 métodos
     proj_regime = projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot)
-    print("Método 1 - Regime Adaptativo:")
-    print(proj_regime[['session_month', 'retencao_pct_proj']])
-    
-    # Método 2: Média Móvel Ponderada
     proj_mm = projetar_com_media_movel_ponderada(df_monthly_macro, df_projecoes, bot)
-    print("\nMétodo 2 - Média Móvel Ponderada:")
-    print(proj_mm[['session_month', 'retencao_pct_proj']])
-    
-    # Método 3: Conservador
     proj_cons = projetar_conservador(df_monthly_macro, df_projecoes, bot)
-    print("\nMétodo 3 - Conservador:")
-    print(proj_cons[['session_month', 'retencao_pct_proj']])
     
-    # Ensemble: média dos três métodos
-    proj_ensemble = proj_regime.copy()
-    proj_ensemble['retencao_pct_proj'] = (
-        proj_regime['retencao_pct_proj'] + 
-        proj_mm['retencao_pct_proj'] + 
-        proj_cons['retencao_pct_proj']
-    ) / 3
-    proj_ensemble['retencao_pct_proj'] = proj_ensemble['retencao_pct_proj'].round(2)
-    proj_ensemble['metodo'] = 'ensemble'
-    
-    print("\n*** PROJEÇÃO FINAL (Ensemble) ***:")
-    print(proj_ensemble[['session_month', 'retencao_pct_proj']])
-    
-    projecoes_finais.append(proj_ensemble)
+    # Ensemble (média dos 3)
+    for mes in ['2025-09', '2025-10', '2025-11', '2025-12']:
+        v1 = proj_regime[proj_regime['session_month'] == mes]['retencao_pct_proj'].iloc[0]
+        v2 = proj_mm[proj_mm['session_month'] == mes]['retencao_pct_proj'].iloc[0]
+        v3 = proj_cons[proj_cons['session_month'] == mes]['retencao_pct_proj'].iloc[0]
+        
+        valor_final = round((v1 + v2 + v3) / 3, 2)
+        
+        linhas_future.append({
+            "chatbot": bot,
+            "session_month": mes,
+            "retencao_pct_proj": valor_final,
+        })
+        
+        print(f"{mes}: {valor_final}%")
 
-# Consolidar todas as projeções
-df_projecoes_finais = pd.concat(projecoes_finais, ignore_index=True)
+# DATAFRAME FINAL DAS PROJEÇÕES FUTURAS (mesmo formato do seu código)
+df_future_trend = pd.DataFrame(linhas_future)
+
+print("\n" + "="*70)
+print("TABELA CONSOLIDADA - PROJEÇÕES SET-DEZ")
+print("="*70 + "\n")
+print(df_future_trend.to_string(index=False))
 
 # ============================================================================
-# VISUALIZAÇÃO
+# MONTAR SÉRIE 2025 COMPLETA (mesmo formato do seu código)
 # ============================================================================
-
-fig, axes = plt.subplots(1, 2, figsize=(16, 6))
-
-for idx, bot in enumerate(bots):
-    ax = axes[idx]
-    
-    # Histórico
-    df_bot_hist = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
-    df_bot_hist['session_month'] = pd.to_datetime(df_bot_hist['session_month'].astype(str))
-    
-    ax.plot(df_bot_hist['session_month'], df_bot_hist['retencao_pct'], 
-            marker='o', linewidth=2, label='Histórico Real')
-    
-    # Agosto projetado
-    valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
-    ax.plot(pd.Timestamp('2025-08'), valor_agosto, 
-            marker='o', color='orange', markersize=10, label='Agosto (Projetado)')
-    
-    # Projeções futuras
-    df_bot_proj = df_projecoes_finais[df_projecoes_finais['chatbot'] == bot].copy()
-    df_bot_proj['session_month'] = pd.to_datetime(df_bot_proj['session_month'])
-    
-    ax.plot(df_bot_proj['session_month'], df_bot_proj['retencao_pct_proj'], 
-            marker='s', linewidth=2, linestyle='--', color='red', label='Projeção Set-Dez')
-    
-    ax.set_title(f'Projeção de Retenção 2025 - {bot}', fontsize=14, fontweight='bold')
-    ax.set_xlabel('Mês')
-    ax.set_ylabel('Retenção (%)')
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    ax.tick_params(axis='x', rotation=45)
-
-plt.tight_layout()
-plt.show()
-
-
-# INDICADOR ANUAL 2025
-
-
-# Consolidar série completa de 2025
-df_2025_completo = []
 
 # Real até julho
 df_2025_real = df_monthly_macro[
-    df_monthly_macro['session_month'].str.startswith('2025') & 
-    (df_monthly_macro['session_month'] < '2025-08')
-][['chatbot', 'session_month', 'retencao_pct']].copy()
-
-df_2025_completo.append(df_2025_real)
+    (df_monthly_macro["session_month"].str.startswith("2025")) &
+    (df_monthly_macro["session_month"] < "2025-08")
+][["chatbot", "session_month", "retencao_pct"]].copy()
 
 # Agosto projetado
+df_ago_proj = []
 for _, row in df_projecoes.iterrows():
-    df_2025_completo.append(pd.DataFrame([{
-        'chatbot': row['chatbot'],
-        'session_month': '2025-08',
-        'retencao_pct': row['retencao_proj_final_agosto']
-    }]))
+    df_ago_proj.append({
+        "chatbot": row["chatbot"],
+        "session_month": "2025-08",
+        "retencao_pct": row["retencao_proj_final_agosto"],
+    })
+df_ago_proj = pd.DataFrame(df_ago_proj)
 
-# Set-Dez projetados
-df_projecoes_finais_renamed = df_projecoes_finais[['chatbot', 'session_month', 'retencao_pct_proj']].copy()
-df_projecoes_finais_renamed.columns = ['chatbot', 'session_month', 'retencao_pct']
-df_2025_completo.append(df_projecoes_finais_renamed)
+# Futuro renomeado (set-dez)
+df_future_trend_ren = df_future_trend.rename(
+    columns={"retencao_pct_proj": "retencao_pct"}
+)
 
-# Consolidar
-df_2025_full = pd.concat(df_2025_completo, ignore_index=True)
+# SÉRIE COMPLETA 2025 (mesmo nome do seu código)
+df_2025_full = pd.concat(
+    [df_2025_real, df_ago_proj, df_future_trend_ren],
+    ignore_index=True,
+)
 
-# Calcular média anual por chatbot
-df_indicador_anual = df_2025_full.groupby('chatbot')['retencao_pct'].mean().reset_index()
-df_indicador_anual.columns = ['chatbot', 'retencao_media_2025']
+# ============================================================================
+# INDICADOR ANUAL 2025 (mesmo formato do seu código)
+# ============================================================================
+
+df_indicador_anual = (
+    df_2025_full
+    .groupby("chatbot")["retencao_pct"]
+    .mean()
+    .reset_index()
+    .rename(columns={"retencao_pct": "retencao_media_2025"})
+)
 df_indicador_anual['retencao_media_2025'] = df_indicador_anual['retencao_media_2025'].round(2)
 
-print("\n" + "="*60)
-print("INDICADOR DE RETENÇÃO PROJETADO - ANO 2025")
-print("="*60)
+print("\n" + "="*70)
+print("INDICADOR DE RETENÇÃO PROJETADO — ANO 2025")
+print("="*70 + "\n")
 print(df_indicador_anual.to_string(index=False))
-print("\n")
+
+# SUMÁRIO FINAL
+# ============================================================================
+
+print("\n" + "="*70)
+print("RESUMO - DATAFRAMES GERADOS")
+print("="*70 + "\n")
+
+print("1. df_future_trend - Projeções mensais Set-Dez:")
+print(f"   Shape: {df_future_trend.shape}")
+print(f"   Colunas: {df_future_trend.columns.tolist()}\n")
+
+print("2. df_2025_full - Série completa 2025 (Real + Projeções):")
+print(f"   Shape: {df_2025_full.shape}")
+print(f"   Meses: {sorted(df_2025_full['session_month'].unique())}\n")
+
+print("3. df_indicador_anual - Indicador consolidado 2025:")
+print(df_indicador_anual.to_string(index=False))
+print("\n" + "="*70 + "\n")
+
 
 
 
