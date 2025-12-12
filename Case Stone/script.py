@@ -813,10 +813,14 @@ print(df_projecoes.to_string(index=False))
 
 #%% Projeção para os meses de setembro a dezembro de 2025 - pergunta 3 
 
-# 1. Garantir que session_month é string
+# Premissa: após agosto/2025 entramos em um novo platô de operação para cada bot.
+# Vamos projetar esse platô usando o comportamento histórico dos platôs anteriores
+# (variação média mensal dentro de platô, sem novos saltos estruturais).
+
+# 1) Garantir que session_month está como string
 df_monthly_macro["session_month"] = df_monthly_macro["session_month"].astype(str)
 
-# 2. Substituir agosto pelo valor projetado (para usar na série inteira)
+# 2) Copiar base mensal e substituir agosto/2025 pelo valor projetado (pergunta 2)
 df_trend = df_monthly_macro.copy()
 
 for _, row in df_projecoes.iterrows():
@@ -827,106 +831,148 @@ for _, row in df_projecoes.iterrows():
     df_trend.loc[mask, "retencao_pct"] = row["retencao_proj_final_agosto"]
 
 
-# ------------------------------
-# Função: medir "drift de platô"
-# ------------------------------
+# -------------------------------------------------------------------
+# Função: aprender "drift de platô" com base em TODO o histórico
+# -------------------------------------------------------------------
 import numpy as np
 
-def calcular_drift_plato(df_hist, chatbot,
-                         lim_jump=1.5,     # > 1.5 p.p. = salto estrutural (disrupção)
-                         lim_plato=1.5,    # ≤ 1.5 p.p. = movimento dentro do platô
-                         max_step_proj=0.25):  # p.p. máx por mês na projeção
+def aprender_drift_plato(
+    df_hist: pd.DataFrame,
+    chatbot: str,
+    lim_jump: float = 1.5,      # p.p. para considerar disrupção (salto estrutural)
+    max_step_proj: float = 0.40 # p.p. máximo/mês a ser usado na projeção do platô
+) -> float:
     """
-    Identifica saltos grandes na série (degraus) e calcula qual costuma ser
-    o drift médio durante os períodos de platô entre esses saltos.
+    Aprende o 'drift' típico de um platô para um chatbot, usando o histórico completo.
 
-    - Disrupção: |delta| > lim_jump
-    - Platô: |delta| ≤ lim_plato
-
-    Usa TODO o histórico disponível para o chatbot (não só 2025).
-    Depois limita esse drift por mês (max_step_proj) para não projetar
-    quedas/subidas irreais.
+    Passos:
+    1. Para o bot, ordena a série mensal completa de retenção.
+    2. Calcula deltas mensais.
+    3. Considera como 'disrupções' os meses em que |delta| > lim_jump.
+       Esses pontos separam os platôs.
+    4. Dentro de cada platô (entre duas disrupções), coleta os deltas mensais
+       com |delta| <= lim_jump (variação típica de platô).
+    5. Usa:
+        - magnitude média dos |deltas| de platô (tamanho do passo),
+        - sinal da média dos deltas nas bordas finais dos platôs
+          (para capturar a leve queda ou leve alta que costuma aparecer
+           antes de um novo salto).
+    6. Limita o passo mensal máximo (max_step_proj) para evitar projeções irreais.
     """
+
     df_bot = (
         df_hist[df_hist["chatbot"] == chatbot]
         .sort_values("session_month")
         .reset_index(drop=True)
     )
     vals = df_bot["retencao_pct"].values
-    if len(vals) < 3:
+    n = len(vals)
+
+    if n < 4:
+        # Poucos pontos, projetar platô completamente flat
         return 0.0
 
-    # deltas mensais
-    deltas = np.diff(vals)   # tamanho n-1
+    # Série de tempo (índices 0..n-1)
+    t = np.arange(n)
 
-    # índices onde houve "salto" (degrau estrutural): i -> i+1
+    # Deltas mensais
+    deltas = np.diff(vals)  # tamanho n-1
+
+    # Índices de disrupção (salto estrutural de i -> i+1)
     jump_idx = np.where(np.abs(deltas) > lim_jump)[0]
 
-    # se não achar nenhum salto, drift ~ 0 (série bem estável)
+    # Se não houver disrupção, usamos apenas uma regressão simples na série toda
     if len(jump_idx) == 0:
-        return 0.0
+        a, b = np.polyfit(t, vals, 1)
+        a = float(np.clip(a, -max_step_proj, max_step_proj))
+        return a
 
-    # separar segmentos entre saltos
-    # ex: [-1] -> primeiro trecho começa em 0
+    # Define segmentos entre disrupções (cada segmento ~ um platô)
     seg_starts = np.concatenate(([-1], jump_idx))
-    seg_ends   = np.concatenate((jump_idx, [len(vals) - 1]))
+    seg_ends   = np.concatenate((jump_idx, [n - 1]))
 
-    drifts_por_seg = []
+    all_plateau_deltas = []
+    end_plateau_deltas = []
 
     for s, e in zip(seg_starts, seg_ends):
-        # valores do segmento: s+1 .. e
-        seg_vals = vals[s+1:e+1]
-        if len(seg_vals) < 2:
+        # platô: pontos de s+1 até e
+        idx_ini = s + 1
+        idx_fim = e
+
+        if idx_fim - idx_ini < 1:
             continue
 
+        seg_vals = vals[idx_ini:idx_fim+1]
         seg_deltas = np.diff(seg_vals)
+        if len(seg_deltas) == 0:
+            continue
 
-        # deltas dentro do platô: |Δ| ≤ lim_plato
-        plateau_deltas = seg_deltas[np.abs(seg_deltas) <= lim_plato]
-        if len(plateau_deltas) > 0:
-            drifts_por_seg.append(plateau_deltas.mean())
+        # Dentro do platô, consideramos apenas variações abaixo do limiar de disrupção
+        plateau_deltas = seg_deltas[np.abs(seg_deltas) <= lim_jump]
+        if len(plateau_deltas) == 0:
+            continue
 
-    if len(drifts_por_seg) == 0:
-        drift = 0.0
+        # Todos os deltas de platô (para magnitude típica)
+        all_plateau_deltas.extend(plateau_deltas.tolist())
+
+        # Guardar os últimos 1–2 deltas do platô para entender o "final" dele
+        if len(plateau_deltas) >= 2:
+            end_plateau_deltas.extend(plateau_deltas[-2:].tolist())
+        else:
+            end_plateau_deltas.extend(plateau_deltas.tolist())
+
+    # Se não sobrou nada, drift ~ 0
+    if not all_plateau_deltas:
+        return 0.0
+
+    # Magnitude típica de variação dentro de platô
+    typical_step = float(np.mean(np.abs(all_plateau_deltas)))
+    typical_step = float(np.clip(typical_step, 0.0, max_step_proj))
+
+    # Sinal da tendência no final dos platôs (se for 0, usa sinal médio geral)
+    if end_plateau_deltas:
+        sign = np.sign(np.mean(end_plateau_deltas))
+        if sign == 0:
+            sign = np.sign(np.mean(all_plateau_deltas))
     else:
-        # drift médio típico de platô (pode ser levemente negativo ou positivo)
-        drift = float(np.mean(drifts_por_seg))
+        sign = np.sign(np.mean(all_plateau_deltas))
 
-    # limitar quanto vamos usar na projeção (máx 0.25 p.p./mês, por ex.)
-    drift = float(np.clip(drift, -max_step_proj, max_step_proj))
-    return drift
+    drift = typical_step * sign
+    return float(drift)
 
 
-# 3. Projeção set–dez usando "drift de platô"
+
+# 3) Projeção de setembro a dezembro assumindo NOVO PLATÔ pós-agosto
+
 meses_futuros = ["2025-09", "2025-10", "2025-11", "2025-12"]
 linhas_future = []
 
 for bot in bots:
-    # série histórica completa do bot (já com agosto projetado)
-    df_bot = (
+    # Histórico completo do bot (já com agosto/2025 ajustado)
+    df_bot_hist = (
         df_trend[df_trend["chatbot"] == bot]
         .sort_values("session_month")
         .reset_index(drop=True)
     )
-    vals = df_bot["retencao_pct"].values
+    vals = df_bot_hist["retencao_pct"].values
 
-    # valor base para projeção = agosto projetado (último ponto)
-    base_aug = vals[-1]
+    # Valor base para projeção = agosto/2025 (projetado)
+    base_aug = df_bot_hist.loc[
+        df_bot_hist["session_month"] == "2025-08", "retencao_pct"
+    ].iloc[0]
 
-    # drift típico de platô, calculado com base em TODO o histórico
-    drift_plato = calcular_drift_plato(df_trend, chatbot=bot)
+    # Drift médio de platô aprendido no histórico completo
+    drift_plato = aprender_drift_plato(df_trend, chatbot=bot)
 
-    # limites razoáveis com base no histórico (não sair muito do intervalo)
+    # Limites de segurança baseados no histórico (mantém a série em nível coerente)
     y_min_hist = vals.min()
     y_max_hist = vals.max()
     lower_bound = max(0, y_min_hist - 2)   # até 2 p.p. abaixo do mínimo histórico
     upper_bound = min(100, y_max_hist + 2) # até 2 p.p. acima do máximo histórico
 
+    # Projeção mês a mês, assumindo continuidade do platô pós-agosto
     for i, mes in enumerate(meses_futuros, start=1):
-        # projeção = valor de agosto + i * drift de platô
         valor = base_aug + i * drift_plato
-
-        # clamp em limites históricos (curva não pode cair muito nem explodir)
         valor = float(np.clip(valor, lower_bound, upper_bound))
 
         linhas_future.append({
@@ -937,19 +983,20 @@ for bot in bots:
 
 df_future_trend = pd.DataFrame(linhas_future)
 
-print("\n=========== PROJEÇÃO SET–DEZ COM COMPORTAMENTO DE PLATÔ ===========\n")
+print("\n=========== PROJEÇÃO SET–DEZ COM PLATÔ APRENDIDO DO HISTÓRICO ===========\n")
 print(df_future_trend.to_string(index=False))
 
 
-# 4) Montar série 2025 completa (real + agosto proj + futuro)
+# 4) Montar série 2025 completa (Real + Agosto projetado + Futuro)
 
-# reais até JULHO
+
+# Reais até JULHO/2025
 df_2025_real = df_monthly_macro[
     (df_monthly_macro["session_month"].str.startswith("2025")) &
     (df_monthly_macro["session_month"] < "2025-08")
 ][["chatbot", "session_month", "retencao_pct"]].copy()
 
-# Agosto projetado
+# Agosto projetado no mesmo formato
 df_ago_proj = []
 for _, row in df_projecoes.iterrows():
     df_ago_proj.append({
@@ -960,7 +1007,9 @@ for _, row in df_projecoes.iterrows():
 df_ago_proj = pd.DataFrame(df_ago_proj)
 
 # Futuro renomeado
-df_future_trend_ren = df_future_trend.rename(columns={"retencao_pct_proj": "retencao_pct"})
+df_future_trend_ren = df_future_trend.rename(
+    columns={"retencao_pct_proj": "retencao_pct"}
+)
 
 # Série completa 2025
 df_2025_full = pd.concat(
@@ -968,7 +1017,9 @@ df_2025_full = pd.concat(
     ignore_index=True,
 )
 
-# 5) Indicador anual (média da retenção 2025)
+
+# 5) Indicador anual – retenção média projetada em 2025 por chatbot
+
 df_indicador_anual = (
     df_2025_full
     .groupby("chatbot")["retencao_pct"]
