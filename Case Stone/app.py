@@ -336,7 +336,7 @@ Esse comparativo mostra, por bot:
     
     st.subheader("Correlação entre Retenção e Pedido de Atendimento (por Chatbot)")
 
-      st.markdown(
+    st.markdown(
         """
 - Para o **BOT_B**, a correlação negativa indica que, em média, mais pedidos de atendimento se associam a menor retenção, como esperado.
 - Para o **BOT_A**, a correlação positiva sugere um padrão contra-intuitivo, levantando dúvidas e pontos de atenção sobre possível eficácia do fallback do bot e problemas na mensuração das métricas.
@@ -398,7 +398,7 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
     # --- Deep dive Chat_C BOT_A ---
     st.subheader("Deep Dive 1 - Canal `Chat_C` para BOT_A (Retenção Zerada em Agosto)")
 
-     st.markdown(
+    st.markdown(
         """
 - **Anomalia clara:** `Chat_C` para BOT_A apresenta retenção zerada em agosto,
   em diversos dias, com ~4,7k sessões impactadas.
@@ -548,6 +548,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
