@@ -532,37 +532,43 @@ with tab3:
     st.subheader("Gráfico - Retenção 2025 por Chatbot (Real vs Projetado)")
 
     for bot in bots:
-        df_bot_2025 = df_2025_full[df_2025_full["chatbot"] == bot].copy()
-        df_bot_2025 = df_bot_2025.sort_values("session_month")
+    df_bot_2025 = df_2025_full[df_2025_full["chatbot"] == bot].copy()
+    df_bot_2025 = df_bot_2025.sort_values("session_month")
 
-        df_bot_2025["tipo"] = df_bot_2025["session_month"].apply(
-            lambda m: "Projetado" if m >= "2025-08" else "Real"
-        )
+    df_bot_2025["tipo"] = df_bot_2025["session_month"].apply(
+        lambda m: "Projetado" if m >= "2025-08" else "Real"
+    )
 
-        fig_bot, ax_bot = plt.subplots(figsize=(10, 4))
-        sns.lineplot(
-            data=df_bot_2025[df_bot_2025["tipo"] == "Real"],
-            x="session_month",
-            y="retencao_pct",
-            marker="o",
-            label="Real",
-            ax=ax_bot,
-        )
-        sns.lineplot(
-            data=df_bot_2025[df_bot_2025["tipo"] == "Projetado"],
-            x="session_month",
-            y="retencao_pct",
-            marker="o",
-            linestyle="--",
-            label="Projetado",
-            ax=ax_bot,
-        )
-        ax_bot.set_title(f"Retenção 2025 - {bot}")
-        ax_bot.set_xlabel("Mês")
-        ax_bot.set_ylabel("Retenção (%)")
-        plt.xticks(rotation=45)
-        ax_bot.grid(True)
-        st.pyplot(fig_bot)
+    fig_bot, ax_bot = plt.subplots(figsize=(10, 4))
+    sns.lineplot(
+        data=df_bot_2025[df_bot_2025["tipo"] == "Real"],
+        x="session_month",
+        y="retencao_pct",
+        marker="o",
+        label="Real",
+        ax=ax_bot,
+    )
+    sns.lineplot(
+        data=df_bot_2025[df_bot_2025["tipo"] == "Projetado"],
+        x="session_month",
+        y="retencao_pct",
+        marker="o",
+        linestyle="--",
+        label="Projetado",
+        ax=ax_bot,
+    )
+
+    # --- ajuste da escala do eixo Y ---
+    # y_min = df_bot_2025["retencao_pct"].min()
+    ax_bot.set_ylim(0, 100)
+
+    ax_bot.set_title(f"Retenção 2025 - {bot}")
+    ax_bot.set_xlabel("Mês")
+    ax_bot.set_ylabel("Retenção (%)")
+    plt.xticks(rotation=45)
+    ax_bot.grid(True)
+
+    st.pyplot(fig_bot)
 
     st.subheader("Indicador Anual Projetado - Retenção Média 2025")
     st.dataframe(
@@ -573,64 +579,75 @@ with tab3:
     st.subheader("Racional para desenvolvimento da projeção")
     st.markdown(
 """
-Para projetar o restante de 2025, eu parti de uma premissa bem clara:  
-**depois de agosto, não estou assumindo nenhuma nova mudança estrutural** (nova tecnologia, mudança forte de regra de negócio etc.).  
-Ou seja: a partir de agosto, o bot entra em um **novo platô** e eu quero estimar como esse platô tende a se comportar.
+#### Racional da projeção de setembro a dezembro
 
-#### 1. Primeiro, entendi como os platôs se comportam no histórico
-
-- Olhei para toda a série mensal de cada bot e marquei os pontos de **disrupção**: meses em que a retenção muda mais de **1,5 p.p. vs mês anterior**.  
-  Esses pontos são os “degraus”: mudança de tecnologia, regra, fluxo etc.
-- Entre esses degraus, ficam os trechos em que a retenção varia pouco mês a mês.  
-  Esses trechos eu trato como **platôs operacionais**, onde o bot já está rodando em “modo normal”.
-- Dentro de cada platô, eu analisei apenas as **variações pequenas (≤ 1,5 p.p.)** e calculei:
-  - a **variação média por mês** (se o platô costuma subir de leve, cair de leve ou praticamente ficar parado);  
-  - o **comportamento de fim de platô**: se, perto do fim, a série costuma dar uma leve caída ou uma leve subida.
-
-#### 2. Depois, transformei isso em um “drift de platô” por bot
-
-- A partir dessas variações, estimei um **drift mensal típico** para cada bot (em p.p./mês).  
-  Ele pode ser levemente positivo ou negativo – o que reflete exatamente o que já aconteceu na prática.
-- Para evitar projeções irreais, eu **limito o tamanho desse drift por mês**  
-  (por exemplo, não deixo passar de ±0,4 p.p. em cada mês projetado).
-- Além disso, eu uso o padrão de **fim dos platôs históricos** para definir o **sinal** do drift:
-  - se, historicamente, os platôs daquele bot terminam com uma leve queda, o drift projetado tende a ser negativo;
-  - se terminam com uma leve alta, o drift tende a ser positivo.
-
-#### 3. Por fim, aplico esse platô aprendido a partir de agosto
-
-- Eu uso a **retenção projetada de agosto** como ponto de partida do novo platô.  
-- A partir de setembro, aplico o **drift de platô aprendido** mês a mês, mantendo os valores dentro de uma faixa coerente com o histórico do próprio bot.
-- O resultado é um **platô pós-agosto** com pequenas oscilações mensais, parecido com o comportamento que já vimos em platôs anteriores, e não uma reta infinita de crescimento ou queda.
+Para projetar o restante de 2025, eu não quis depender de um único modelo nem assumir uma reta infinita de crescimento ou queda. Em vez disso, construí **três visões complementares** e, no final, agreguei tudo em um **ensemble**.
 
 ---
 
-### Por que eu não usei regressão linear “reta única”?
+**1. Regime adaptativo (mudanças de patamar)**
 
-Eu decidi **não** usar uma regressão linear simples por alguns motivos:
-
-- A série de retenção não é linear: ela é feita de **saltos (degraus)** seguidos de períodos mais estáveis.  
-  Uma reta única mistura esses dois mundos (mudanças estruturais + flutuações normais) e acaba gerando projeções distorcidas.
-- Tenho **poucos pontos mensais em cada regime**. Se eu ajusto uma reta só nos últimos meses, o risco é **exagerar a tendência de curtíssimo prazo** (por exemplo, pegar 2–3 meses de alta e assumir que isso vai continuar o ano inteiro).
-- Para o negócio, considero mais realista assumir que, **sem nova grande mudança**, o bot entra em um **novo patamar** e oscila em torno dele, em vez de crescer ou cair indefinidamente.
+- A lógica aqui parte da ideia de que a série de retenção funciona em **regimes**:
+  - Primeiro, olho para a série mensal completa de cada bot e calculo os **deltas mês a mês**.
+  - Em seguida, identifico **mudanças de regime** quando o delta foge demais do padrão histórico  
+    (diferença em relação à média dos deltas maior que um certo número de desvios padrão).
+- A partir da última mudança relevante, eu defino o **regime atual (pós-mudança)** e:
+  - ajusto uma **tendência simples** dentro desse regime (via regressão linear);
+  - calculo a **volatilidade** desse trecho para entender quanto a série costuma oscilar.
+- A projeção funciona assim:
+  - uso a **retenção projetada de agosto** como ponto de partida;
+  - prolongo a tendência do regime atual, mas aplicando um **fator de “decay”**:  
+    quanto mais longe de agosto, menor o peso dessa tendência, assumindo que mudanças grandes tendem a se estabilizar;
+  - limito o valor projetado dentro de uma **faixa coerente com o histórico** do próprio bot  
+    (mínimo/máximo históricos ajustados pela volatilidade).
+- Em resumo, esse método captura bem o **“humor” atual do bot**, mas com freio para não exagerar.
 
 ---
 
-### Por que essa estratégia de platô faz sentido aqui?
+**2. Média móvel ponderada (olhar mais curto, foco no recente)**
 
-- Ela conversa diretamente com o que o histórico mostra:  
-  **degraus quando algo grande muda + platôs com pequenas oscilações** depois disso.
-- É **fácil de explicar**: eu posso dizer literalmente que  
-  “**a partir de agosto, o bot tende a se comportar como nos platôs anteriores, com pequenas variações mensais**”.
-- A projeção vira um **cenário-base conservador**:
-  - mantém o nível de retenção em um intervalo crível, baseado no que já aconteceu;
-  - abre espaço para simular cenários:  
-    *“e se eu fizer uma nova mudança de tecnologia e criar um novo degrau?”*,
-    *“e se eu resolver o problema de Chat_C?”* etc.
+- Aqui a pergunta é:  
+  **“Se nada muito diferente acontecer, o bot tende a se comportar como nos últimos meses?”**
+- A abordagem é:
+  - pego os últimos meses de retenção e calculo uma **média móvel ponderada**, dando mais peso para os meses mais recentes;
+  - em paralelo, capturo uma **tendência suave** nesse intervalo (se a retenção recente está levemente subindo ou caindo).
+- Na projeção:
+  - começo em agosto (valor projetado) e, mês a mês, faço um **mix** entre:
+    - agosto projetado (com um peso que vai diminuindo ao longo do tempo);
+    - a **média ponderada** dos últimos meses;
+    - mais um **ajuste pequeno de tendência**, para não ficar 100% flat.
+- O resultado é um cenário que respeita bastante o **curto prazo** e tende a um comportamento mais “natural” de **platô com pequenas variações**.
 
-Em resumo, eu projetei setembro–dezembro assumindo que **agosto inaugura um novo platô** e que esse platô tende a se comportar de forma parecida com os anteriores do mesmo bot, com pequenos ajustes mensais em vez de uma reta artificial de alta ou queda.
+---
+
+**3. Cenário conservador (estabilização pós-agosto)**
+
+- O terceiro método é propositalmente mais conservador:
+  - assumo que, passado agosto, o bot entra em uma **zona de estabilização**.
+- A construção é:
+  - uso a **retenção de agosto** como ponto de partida;
+  - faço uma **convergência gradual** para a **média recente dos últimos meses**.
+- Na prática, é um jeito de responder:
+  - **“Se nada muito diferente acontecer, em que nível esse bot tende a estabilizar ao longo do ano?”**
+- Isso evita tanto **explosões excessivamente otimistas** quanto **quedas muito pessimistas**.
+
+---
+
+**4. Ensemble: juntando as três visões**
+
+- Para chegar na projeção final de setembro a dezembro, tiro uma **média simples dos três métodos**:
+  - **Regime adaptativo** → captura a dinâmica do regime atual.
+  - **Média móvel ponderada** → dá peso maior ao comportamento mais recente.
+  - **Conservador** → ancora em um cenário de estabilização.
+- O ensemble funciona como um **“meio do caminho”** entre essas leituras:
+  - reduz a dependência de qualquer modelo isolado;
+  - produz um **platô projetado mais crível**, ainda ancorado em agosto, mas com pequenas oscilações mês a mês.
+- No fim das contas, o objetivo não é “acertar o número na vírgula”, e sim construir um **cenário-base coerente com o histórico, fácil de explicar para o negócio** e que sirva como referência para responder:
+  - **“dado o que já aconteceu, o que posso esperar desses bots até o fim de 2025 se nada muito diferente for feito?”**
+
     """ 
     )
+
 
 
 
