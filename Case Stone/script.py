@@ -833,14 +833,19 @@ for _, row in df_projecoes.iterrows():
 import numpy as np
 
 def calcular_drift_plato(df_hist, chatbot,
-                         lim_jump=1.5,     # p.p. para considerar um salto estrutural
-                         lim_plato=1.0,    # p.p. máx para considerar que está em platô
+                         lim_jump=1.5,     # > 1.5 p.p. = salto estrutural (disrupção)
+                         lim_plato=1.5,    # ≤ 1.5 p.p. = movimento dentro do platô
                          max_step_proj=0.25):  # p.p. máx por mês na projeção
     """
     Identifica saltos grandes na série (degraus) e calcula qual costuma ser
     o drift médio durante os períodos de platô entre esses saltos.
 
-    Depois limita esse drift por mês (max_step_proj) para não projetar quedas/subidas irreais.
+    - Disrupção: |delta| > lim_jump
+    - Platô: |delta| ≤ lim_plato
+
+    Usa TODO o histórico disponível para o chatbot (não só 2025).
+    Depois limita esse drift por mês (max_step_proj) para não projetar
+    quedas/subidas irreais.
     """
     df_bot = (
         df_hist[df_hist["chatbot"] == chatbot]
@@ -848,18 +853,20 @@ def calcular_drift_plato(df_hist, chatbot,
         .reset_index(drop=True)
     )
     vals = df_bot["retencao_pct"].values
+    if len(vals) < 3:
+        return 0.0
 
     # deltas mensais
     deltas = np.diff(vals)   # tamanho n-1
 
-    # índices onde houve "salto" (degrau estrutural)
-    jump_idx = np.where(np.abs(deltas) >= lim_jump)[0]    # pulo de i -> i+1
+    # índices onde houve "salto" (degrau estrutural): i -> i+1
+    jump_idx = np.where(np.abs(deltas) > lim_jump)[0]
 
-    # se não achar nenhum salto, drift ~ 0
+    # se não achar nenhum salto, drift ~ 0 (série bem estável)
     if len(jump_idx) == 0:
         return 0.0
 
-    # vamos separar segmentos entre saltos
+    # separar segmentos entre saltos
     # ex: [-1] -> primeiro trecho começa em 0
     seg_starts = np.concatenate(([-1], jump_idx))
     seg_ends   = np.concatenate((jump_idx, [len(vals) - 1]))
@@ -871,10 +878,11 @@ def calcular_drift_plato(df_hist, chatbot,
         seg_vals = vals[s+1:e+1]
         if len(seg_vals) < 2:
             continue
+
         seg_deltas = np.diff(seg_vals)
 
-        # só considerar meses em que o delta é pequeno (platô, não salto)
-        plateau_deltas = seg_deltas[np.abs(seg_deltas) < lim_plato]
+        # deltas dentro do platô: |Δ| ≤ lim_plato
+        plateau_deltas = seg_deltas[np.abs(seg_deltas) <= lim_plato]
         if len(plateau_deltas) > 0:
             drifts_por_seg.append(plateau_deltas.mean())
 
