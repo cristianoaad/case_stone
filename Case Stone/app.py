@@ -3,6 +3,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 from matplotlib.lines import Line2D
+from scipy import stats
 import os
 import script 
 
@@ -644,6 +645,7 @@ Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma muda
 
     """ 
     )
+
 
 
 
