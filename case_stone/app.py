@@ -66,8 +66,7 @@ from script import resumo_mes_atual_vs_historico, df_daily
 resumo, mes_atual, mes_anterior, max_day_atual = resumo_mes_atual_vs_historico(df_daily)
 
 # Objetos da questão 3 (projeção)
-df_projecoes = script.df_projecoes
-df_future_trend = script.df_future_trend
+df_projecoes_finais = script.df_projecoes_finais
 df_2025_full = script.df_2025_full
 df_indicador_anual = script.df_indicador_anual
 
@@ -522,7 +521,7 @@ with tab3:
     )
 
     st.subheader("Projeção Mensal - Setembro a Dezembro (Tendência Linear Pós-Maio)")
-    st.dataframe(format_percent_columns(df_future_trend), use_container_width=True)
+    st.dataframe(format_percent_columns(df_projecoes_finais ), use_container_width=True)
 
     st.subheader("Série 2025 Completa - Real + Agosto Projetado + Projeção Futura")
     st.dataframe(
@@ -645,6 +644,7 @@ Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma muda
 
     """ 
     )
+
 
 
 
