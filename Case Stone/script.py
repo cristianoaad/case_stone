@@ -812,7 +812,6 @@ print("\n=========== PROJEÇÃO DE AGOSTO — MÉTODO HISTÓRICO (1-14 → 15-31
 print(df_projecoes.to_string(index=False))
 
 #%% Projeção para os meses de setembro a dezembro de 2025 - pergunta 3 
-
 # Premissa: após agosto/2025 entramos em um novo platô de operação para cada bot.
 # Vamos projetar esse platô usando o comportamento histórico dos platôs anteriores
 # (variação média mensal dentro de platô, sem novos saltos estruturais).
@@ -941,9 +940,9 @@ def aprender_drift_plato(
     return float(drift)
 
 
-
+# -------------------------------------------------------------------
 # 3) Projeção de setembro a dezembro assumindo NOVO PLATÔ pós-agosto
-
+# -------------------------------------------------------------------
 meses_futuros = ["2025-09", "2025-10", "2025-11", "2025-12"]
 linhas_future = []
 
@@ -987,8 +986,9 @@ print("\n=========== PROJEÇÃO SET–DEZ COM PLATÔ APRENDIDO DO HISTÓRICO ===
 print(df_future_trend.to_string(index=False))
 
 
+# -------------------------------------------------------------------
 # 4) Montar série 2025 completa (Real + Agosto projetado + Futuro)
-
+# -------------------------------------------------------------------
 
 # Reais até JULHO/2025
 df_2025_real = df_monthly_macro[
@@ -1017,9 +1017,9 @@ df_2025_full = pd.concat(
     ignore_index=True,
 )
 
-
+# -------------------------------------------------------------------
 # 5) Indicador anual – retenção média projetada em 2025 por chatbot
-
+# -------------------------------------------------------------------
 df_indicador_anual = (
     df_2025_full
     .groupby("chatbot")["retencao_pct"]
@@ -1030,6 +1030,8 @@ df_indicador_anual = (
 
 print("\n=========== INDICADOR DE RETENÇÃO PROJETADO — ANO 2025 ===========\n")
 print(df_indicador_anual.to_string(index=False))
+
+
 
 
 
