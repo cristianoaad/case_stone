@@ -532,43 +532,43 @@ with tab3:
     st.subheader("Gráfico - Retenção 2025 por Chatbot (Real vs Projetado)")
 
     for bot in bots:
-    df_bot_2025 = df_2025_full[df_2025_full["chatbot"] == bot].copy()
-    df_bot_2025 = df_bot_2025.sort_values("session_month")
-
-    df_bot_2025["tipo"] = df_bot_2025["session_month"].apply(
-        lambda m: "Projetado" if m >= "2025-08" else "Real"
-    )
-
-    fig_bot, ax_bot = plt.subplots(figsize=(10, 4))
-    sns.lineplot(
-        data=df_bot_2025[df_bot_2025["tipo"] == "Real"],
-        x="session_month",
-        y="retencao_pct",
-        marker="o",
-        label="Real",
-        ax=ax_bot,
-    )
-    sns.lineplot(
-        data=df_bot_2025[df_bot_2025["tipo"] == "Projetado"],
-        x="session_month",
-        y="retencao_pct",
-        marker="o",
-        linestyle="--",
-        label="Projetado",
-        ax=ax_bot,
-    )
-
-    # --- ajuste da escala do eixo Y ---
-    # y_min = df_bot_2025["retencao_pct"].min()
-    ax_bot.set_ylim(0, 100)
-
-    ax_bot.set_title(f"Retenção 2025 - {bot}")
-    ax_bot.set_xlabel("Mês")
-    ax_bot.set_ylabel("Retenção (%)")
-    plt.xticks(rotation=45)
-    ax_bot.grid(True)
-
-    st.pyplot(fig_bot)
+        df_bot_2025 = df_2025_full[df_2025_full["chatbot"] == bot].copy()
+        df_bot_2025 = df_bot_2025.sort_values("session_month")
+    
+        df_bot_2025["tipo"] = df_bot_2025["session_month"].apply(
+            lambda m: "Projetado" if m >= "2025-08" else "Real"
+        )
+    
+        fig_bot, ax_bot = plt.subplots(figsize=(10, 4))
+        sns.lineplot(
+            data=df_bot_2025[df_bot_2025["tipo"] == "Real"],
+            x="session_month",
+            y="retencao_pct",
+            marker="o",
+            label="Real",
+            ax=ax_bot,
+        )
+        sns.lineplot(
+            data=df_bot_2025[df_bot_2025["tipo"] == "Projetado"],
+            x="session_month",
+            y="retencao_pct",
+            marker="o",
+            linestyle="--",
+            label="Projetado",
+            ax=ax_bot,
+        )
+    
+        # --- ajuste da escala do eixo Y ---
+        # y_min = df_bot_2025["retencao_pct"].min()
+        ax_bot.set_ylim(0, 100)
+    
+        ax_bot.set_title(f"Retenção 2025 - {bot}")
+        ax_bot.set_xlabel("Mês")
+        ax_bot.set_ylabel("Retenção (%)")
+        plt.xticks(rotation=45)
+        ax_bot.grid(True)
+    
+        st.pyplot(fig_bot)
 
     st.subheader("Indicador Anual Projetado - Retenção Média 2025")
     st.dataframe(
@@ -647,6 +647,7 @@ Para projetar o restante de 2025, eu não quis depender de um único modelo nem 
 
     """ 
     )
+
 
 
 
