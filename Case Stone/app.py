@@ -255,7 +255,7 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
     st.dataframe(df_projecoes, use_container_width=True)
     
 # Subdivisão de apendice
- st.header("Questão 2 -Apêndice: Racional Construído para Diagnóstico")
+     st.header("Questão 2 -Apêndice: Racional Construído para Diagnóstico")
 
     # 3) GRÁFICO HISTÓRICO
     
@@ -548,5 +548,6 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
