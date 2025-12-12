@@ -136,8 +136,7 @@ with tab1:
     st.markdown(
         """
 <div class="stone-box">
-<div class="stone-badge">Resumo executivo</div>
-**Resumo da Questão 1**
+<div class="stone-badge">Resumo executivo questão 1</div>
 
 - A tabela `silver_sessions` guarda o evento transacional por sessão, com flags de retenção e pedido de atendimento.
 - O SELECT agrega para uma granularidade diária por bot / canal / tecnologia / tópico / assunto,
@@ -204,7 +203,7 @@ with tab2:
 
         """
         <div class="stone-box">
-        <div class="stone-badge">Resumo executivo</div>
+        <div class="stone-badge">Resumo executivo questão 2</div>
 
         <b>Estamos indo bem em agosto?</b><br>
         • No <b>geral</b>, agosto não é um mês de crise: o BOT_B continua com retenção alta e o BOT_A já mostra recuperação depois da piora entre maio e julho.<br>
@@ -515,8 +514,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.markdown(
         """
 <div class="stone-box">
-<div class="stone-badge">Resumo executivo</div>
-**Resumo executivo da questão 3:**
+<div class="stone-badge">Resumo executivo questão 3</div>
 
 - O **BOT_A** tende a fechar 2025 em patamar acima do início do ano,
   sustentando a recuperação pós-maio, desde que as anomalias de canal/tópico sejam endereçadas.
@@ -576,6 +574,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
