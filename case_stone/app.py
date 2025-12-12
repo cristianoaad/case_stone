@@ -589,7 +589,7 @@ Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma muda
 
 - A lógica aqui parte da ideia de que a série de retenção funciona em **regimes**:
   - Primeiro, olho para a série mensal completa de cada bot e calculo os **deltas mês a mês**.
-  - Em seguida, identifico **mudanças de regime** quando o delta foge demais do padrão histórico  
+  - Em seguida, identifico **mudanças de regime** quando o delta foge demais do padrão histórico - disrupção 
     (diferença em relação à média dos deltas maior que um certo número de desvios padrão).
 - A partir da última mudança relevante, eu defino o **regime atual (pós-mudança)** e:
   - ajusto uma **tendência simples** dentro desse regime (via regressão linear);
@@ -643,8 +643,9 @@ Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma muda
   - reduz a dependência de qualquer modelo isolado;
   - produz um **platô projetado mais crível**, ainda ancorado em agosto, mas com pequenas oscilações mês a mês.
 
-    """ 
+    """, unsafe_allow_html=True
     )
+
 
 
 
