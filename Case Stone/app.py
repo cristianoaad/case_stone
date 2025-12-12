@@ -51,37 +51,52 @@ st.set_page_config(
     layout="wide"
 )
 
-# CSS com cores da Stone
+# CSS (aproveite o que você já tinha e adicione isso dentro)
 st.markdown(
-    f"""
+    """
     <style>
-    h1, h2, h3 {{
-        color: {STONE_GREEN};
-    }}
-    .stone-box {{
-        background-color: rgba(0, 169, 79, 0.08);
-        padding: 1rem 1.25rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid {STONE_GREEN};
-        margin-bottom: 1rem;
-    }}
-    .stone-badge {{
-        display: inline-block;
-        padding: 0.1rem 0.5rem;
-        border-radius: 999px;
-        background-color: rgba(0, 169, 79, 0.12);
-        color: {STONE_GREEN};
-        font-size: 0.8rem;
-        font-weight: 600;
-        margin-bottom: 0.5rem;
-    }}
+    .profile-header {
+        background: #052011;          /* verde bem escuro, combinando com Stone */
+        border-left: 4px solid #00A85A;
+        padding: 10px 16px;
+        margin-bottom: 10px;
+        color: #E6F4EC;
+        font-size: 13px;
+        font-family: "Roboto", "Helvetica", sans-serif;
+    }
+    .profile-header b {
+        font-size: 14px;
+    }
+    .profile-header a {
+        color: #3DD68C;
+        text-decoration: none;
+    }
+    .profile-header a:hover {
+        text-decoration: underline;
+    }
     </style>
     """,
-    unsafe_allow_html=True,
+    unsafe_allow_html=True
 )
 
+
+# BLOCO FIXO DE HEADER - para todas as abas
+
 st.markdown(
-    f'<h1 style="margin-bottom:0.5rem;">Case Técnico - Data Analyst (Chatbots)</h1>',
+    """
+    <div class="profile-header">
+        <b>Cristiano Araújo Abreu Diniz</b><br>
+        dinizcristiano04@gmail.com<br>
+        <a href="https://www.linkedin.com/in/cristianoaadiniz" target="_blank">
+            linkedin.com/in/cristianoaadiniz
+        </a><br>
+        12/12/2025
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+st.markdown(
+    f'<h1 style="margin-bottom:0.5rem;">Case Técnico - Data Analyst Stone</h1>',
     unsafe_allow_html=True,
 )
 
@@ -153,46 +168,105 @@ with tab1:
 
 with tab2:
     st.header("Questão 2 - Diagnóstico da Retenção & Próximos Passos")
+    
+# 1) CONCLUSÕES GERAIS
+    
+    st.subheader("Conclusão da Questão 2 - Próximos Passos Recomendados")
 
-    # 1) CONCLUSÕES GERAIS
+    st.markdown(
+        """
+1. **Investigar profundamente o canal `Chat_C` do BOT_A**
+
+   - Revisar fluxos, intents e regras de roteamento específicos desse canal.
+   - Validar se há erro de logging ou cálculo de `flag_sessao_retida`.
+   - Amostrar conversas dos dias com retenção zerada para entender se o problema é
+     de experiência do cliente ou de mensuração.
+
+2. **Atacar os tópicos e assuntos críticos mapeados**
+
+   - Focar em segmentos com retenção atual < 20% e queda > 10 p.p. versus o mês anterior.
+   - Para cada um, revisar conteúdo, fluxos de fallback e alterações recentes de negócio.
+
+3. **Monitorar de perto assuntos com performance positiva, mas volátil**
+
+   - Assuntos que melhoraram em agosto, mas ainda têm dias com retenção zerada,
+     indicam inconsistência operacional.
+   - Comparar dias bons vs ruins, checando relação com campanhas e sazonalidade.
+
+4. **Criar rotina de monitoramento (dashboard / alertas)**
+
+   - Acompanhar diariamente retenção por bot / canal / tópico / assunto e volume de sessões.
+   - Implementar alertas para quedas bruscas ou retenção zero em segmentos relevantes.
+        """
+    )
+
+    
     st.markdown(
 
         """
         <div class="stone-box">
         <div class="stone-badge">Resumo executivo</div>
-        <b>Principais achados até o momento:</b><br>
-        • Ambos chatbots apresentam uma retenção relativamente estável até maio/2025, quando ocorre um ponto de disrupção (provável ajuste de regras e/ou mudança tecnológica).<br>
-        • O <b>BOT_B</b> opera em patamar de retenção historicamente mais alto, com forte crescimento entre maio e julho e leve acomodação na parcial de agosto, ainda em nível elevado.<br>
-        • O <b>BOT_A</b> tem retenção histórica inferior, mas mantém um gap relativamente estável para o <b>BOT_B</b>. Após a queda observada em maio, apresenta sinais de <b>recuperação em agosto</b> em relação a julho e ao histórico pré-disrupção.<br>
-        • Há <b>anomalia clara</b> no canal <b>Chat_C do BOT_A</b>, com retenção zerada em agosto apesar de histórico médio &gt; 60%, indicando potencial problema de fluxo ou de marcação de métrica e não apenas piora de performance do bot.<br>
-        • Alguns <b>tópicos/assuntos específicos</b> puxam a retenção para baixo em agosto (retenção &lt; 20% e queda &gt; 10 p.p. vs julho), enquanto outros mostram evolução positiva, porém com comportamento ainda volátil (dias muito bons e dias com retenção zerada).<br>
-        • A análise de correlação mostra que, para o <b>BOT_B</b>, mais pedidos de atendimento tendem a se associar a menor retenção (relação negativa esperada), enquanto para o <b>BOT_A</b> há relação positiva contraintuitiva, levantando hipóteses de problemas de logging/definição de flags em alguns segmentos.<br>
-        • A projeção de agosto indica que, <b>uma vez tratadas as anomalias de canal e dos principais tópicos/assuntos</b>, ambos os bots tendem a fechar o mês em patamar igual ou ligeiramente superior ao histórico recente pós-maio.<br>
-        <br>
-        <b>Highlights (pontos positivos):</b><br>
-        • BOT_B sustentando retenção em nível alto mesmo com acomodação em agosto.<br>
-        • BOT_A mostrando trajetória de recuperação na parcial de agosto, após a queda entre maio e julho.<br>
-        • Identificação clara de segmentos com variação positiva de retenção, que podem ser usados como referências de boas práticas.<br>
-        <br>
-        <b>Lowlights (pontos de atenção):</b><br>
-        • Retenção zerada recorrente em <b>Chat_C - BOT_A</b> no mês de agosto, com volume relevante de sessões impactadas.<br>
-        • Tópicos e assuntos com retenção muito baixa e queda forte vs julho, concentrando boa parte da perda de performance do mês.<br>
-        • Alta volatilidade diária em vários assuntos (dias com retenção alta alternando com dias zerados), sugerindo fragilidade operacional ou dependência de condições externas ainda não mapeadas.<br>
-        <br>
+
         <b>Estamos indo bem em agosto?</b><br>
-        • Em termos de <b>nível geral</b>, agosto não representa um cenário de crise: o BOT_B permanece em patamar alto e o BOT_A recupera parte da perda após maio.<br>
-        • Porém, o mês expõe <b>pontos estruturais de risco</b> (principalmente em Chat_C do BOT_A e em alguns tópicos/assuntos específicos) que, se não forem tratados, podem deteriorar a retenção nos próximos meses.<br>
-        • Portanto, agosto deve ser lido como um <b>mês de atenção e correção</b>: o agregado ainda é bom, mas há sinais claros de onde a performance pode deteriorar ou ser consolidada.
-        </div>
+        • No <b>geral</b>, agosto não é um mês de crise: o BOT_B continua com retenção alta e o BOT_A já mostra recuperação depois da piora entre maio e julho.<br>
+        • Por outro lado, o mês expõe <b>pontos de risco</b> claros (principalmente no canal Chat_C do BOT_A e em alguns tópicos/assuntos) que, se não forem tratados, podem derrubar a retenção nos próximos meses.<br>
+        • Por isso, agosto deve ser encarado como um <b>mês de ajuste</b>: o resultado agregado ainda é bom, mas já aponta onde precisamos atuar para evitar deterioração e consolidar ganhos.<br>
+        <br>
+        
+        <b>Highlights (pontos positivos):</b><br>
+        • <b>BOT_B</b> mantém retenção em nível alto, mesmo com uma leve declínio na prévia de agosto.<br>
+        • <b>BOT_A</b> sai da trajetória de queda e mostra <b>movimento de recuperação</b> na parcial de agosto.<br>
+        • Conseguimos identificar <b>tópicos e assuntos com melhora consistente</b> de retenção, que podem servir de referência para ajustes nos demais fluxos.<br>
+        <br>
+        
+        <b>Lowlights (pontos de atenção):</b><br>
+        • Canal <b>Chat_C – BOT_A</b> com períodos de <b>retenção zerada</b> em agosto, afetando um volume relevante de sessões e destoando completamente do histórico (&gt; 60%).<br>
+        • Conjunto de tópicos e assuntos com <b>retenção muito baixa e queda forte vs. julho</b>, concentrando boa parte da perda de performance do mês.<br>
+        • <b>Oscilação diária elevada</b> em diversos assuntos (dias muito bons alternando com dias de retenção zero), sugerindo fragilidade operacional ou dependência de fatores externos ainda não mapeados.<br>
+        <br>
+
+        <b>Principais descobertas:</b><br>
+        • Até maio/2025, os dois bots apresentam um comportamento de retenção relativamente estável; a partir daí, há um <b>ponto de virada</b>, possivelmente ligado a mudança de regras de negócio e/ou tecnologia.<br>
+        • O <b>BOT_B</b> opera em um patamar estruturalmente mais alto de retenção, com <b>crescimento forte de maio a julho</b> e apenas um leve declínio em agosto, ainda em nível considerado saudável.<br>
+        • O <b>BOT_A</b> historicamente retém menos que o BOT_B, mas mantém um gap estável. Após a queda observada em maio, a parcial de agosto indica <b>retomada</b> em relação a julho e aproximação do padrão pré-mudança.<br>
+        • No canal <b>Chat_C do BOT_A</b>, a combinação de <b>retenção zero em agosto + histórico médio acima de 60%</b> indica mais um possível problema de fluxo ou de medição do que apenas piora real da experiência do cliente.<br>
+        • Alguns <b>tópicos e assuntos específicos</b> apresentam queda acentuada (retenção &lt; 20% e queda &gt; 10 p.p. versus julho), enquanto outros mostram melhora relevante, porém ainda com comportamento instável — reforçando a necessidade de olhar caso a caso.<br>
+        • Na análise de correlação, o <b>BOT_B</b> segue o padrão esperado: mais pedidos de atendimento se associam a menor retenção. Já o <b>BOT_A</b> apresenta relação positiva, o que é contraintuitivo e levanta hipóteses de <b>inconsistência na forma como as flags são registradas</b> em alguns cenários.<br>
+        • As projeções indicam que, <b>corrigindo as anomalias de canal e dos tópicos/assuntos críticos</b>, ambos os bots tendem a encerrar agosto em um nível de retenção igual ou ligeiramente superior ao observado nos meses recentes após a mudança de maio.<br>
+            </div>
 
         """,
         unsafe_allow_html=True,
     )
 
- 
-    # 2) GRÁFICO HISTÓRICO
+    # 2) PROJEÇÃO DE AGOSTO
+   
+    st.subheader("Projeção de Fechamento de Agosto (por Chatbot)")
+
+    st.markdown(
+        """
+A projeção de agosto responde ao pedido **“Faça uma projeção de como fecharemos agosto”**:
+
+- Usa a retenção média observada nos **dias 1-14**;
+- Calcula um **fator histórico 1-14 → 15-31** com base em maio, junho e julho;
+- Combina os dois para estimar a **retenção projetada para o mês cheio** por chatbot.
+        """
+    )
+    st.dataframe(df_projecoes, use_container_width=True)
+    
+# Subdivisão de apendice
+ st.header("Questão 2 -Apêndice: Racional Construído para Diagnóstico")
+
+    # 3) GRÁFICO HISTÓRICO
     
     st.subheader("Histórico Mensal: Retenção x Pedido de Atendimento por Chatbot")
+
+    st.markdown(
+        """
+- **BOT_A**: histórico de retenção inferior ao BOT_B, com trajetória de recuperação na parcial de agosto após queda recente.
+- **BOT_B**: trajetória de alta entre maio até julho, com pequeno recuo no parcial de agosto, ainda em patamar elevado frente ao histórico.
+        """
+    )
 
     fig_hist, ax = plt.subplots(figsize=(12, 5))
 
@@ -244,18 +318,9 @@ with tab2:
 
     st.pyplot(fig_hist)
 
-    st.markdown(
-        """
-- **BOT_A**: histórico de retenção inferior ao BOT_B, com trajetória de recuperação na parcial de agosto após queda recente.
-- **BOT_B**: trajetória de alta entre maio até julho, com pequeno recuo no parcial de agosto, ainda em patamar elevado frente ao histórico.
-        """
-    )
-
-   
-    # 3) MÊS ATUAL vs HISTÓRICO
+    # 4) MÊS ATUAL vs HISTÓRICO
    
     st.subheader("Mês Atual x Média Histórica (mesma janela de dias)")
-    st.dataframe(resumo, use_container_width=True)
 
     st.markdown(
         """
@@ -265,27 +330,18 @@ Esse comparativo mostra, por bot:
 - Como está a relação entre retenção e **pedido de atendimento** frente ao mês imediatamente anterior.
         """
     )
+    st.dataframe(resumo, use_container_width=True)
 
-    
-    # 4) PROJEÇÃO DE AGOSTO
-   
-    st.subheader("Projeção de Fechamento de Agosto (por Chatbot)")
-    st.dataframe(df_projecoes, use_container_width=True)
-
-    st.markdown(
-        """
-A projeção de agosto responde ao pedido **“Faça uma projeção de como fecharemos agosto”**:
-
-- Usa a retenção média observada nos **dias 1-14**;
-- Calcula um **fator histórico 1-14 → 15-31** com base em maio, junho e julho;
-- Combina os dois para estimar a **retenção projetada para o mês cheio** por chatbot.
-        """
-    )
-
-   
     # 5) CORRELAÇÃO (NÍVEL MÉDIO)
     
     st.subheader("Correlação entre Retenção e Pedido de Atendimento (por Chatbot)")
+
+      st.markdown(
+        """
+- Para o **BOT_B**, a correlação negativa indica que, em média, mais pedidos de atendimento se associam a menor retenção, como esperado.
+- Para o **BOT_A**, a correlação positiva sugere um padrão contra-intuitivo, levantando dúvidas e pontos de atenção sobre possível eficácia do fallback do bot e problemas na mensuração das métricas.
+        """
+    )
 
     for bot in bots:
         st.markdown(f"**Chatbot: {bot}**")
@@ -310,12 +366,6 @@ A projeção de agosto responde ao pedido **“Faça uma projeção de como fech
             ax_corr.set_title(f"Correlação - {bot}")
             st.pyplot(fig_corr)
 
-    st.markdown(
-        """
-- Para o **BOT_B**, a correlação negativa indica que, em média, mais pedidos de atendimento se associam a menor retenção, como esperado.
-- Para o **BOT_A**, a correlação positiva sugere um padrão contra-intuitivo, levantando dúvidas e pontos de atenção sobre possível eficácia do fallback do bot e problemas na mensuração das métricas.
-        """
-    )
 
     
     # 6) DETALHAMENTO EM TABELAS
@@ -347,8 +397,8 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
 
     # --- Deep dive Chat_C BOT_A ---
     st.subheader("Deep Dive 1 - Canal `Chat_C` para BOT_A (Retenção Zerada em Agosto)")
-    st.dataframe(deep_fonte, use_container_width=True)
-    st.markdown(
+
+     st.markdown(
         """
 - **Anomalia clara:** `Chat_C` para BOT_A apresenta retenção zerada em agosto,
   em diversos dias, com ~4,7k sessões impactadas.
@@ -357,6 +407,8 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
         """
     )
 
+    st.dataframe(deep_fonte, use_container_width=True)
+   
     # --- Tópicos e assuntos críticos / positivos ---
     st.subheader("Deep Dive 2 - Tópicos e Assuntos Críticos / Positivos")
     st.markdown(
@@ -404,35 +456,7 @@ A partir daqui, descemos a granularidade para explicar **o porquê** do comporta
         else:
             st.write("Nenhum assunto com variação positiva relevante identificado.")
 
-    st.subheader("Conclusão da Questão 2 - Próximos Passos Recomendados")
-
-    st.markdown(
-        """
-1. **Investigar profundamente o canal `Chat_C` do BOT_A**
-
-   - Revisar fluxos, intents e regras de roteamento específicos desse canal.
-   - Validar se há erro de logging ou cálculo de `flag_sessao_retida`.
-   - Amostrar conversas dos dias com retenção zerada para entender se o problema é
-     de experiência do cliente ou de mensuração.
-
-2. **Atacar os tópicos e assuntos críticos mapeados**
-
-   - Focar em segmentos com retenção atual < 20% e queda > 10 p.p. versus o mês anterior.
-   - Para cada um, revisar conteúdo, fluxos de fallback e alterações recentes de negócio.
-
-3. **Monitorar de perto assuntos com performance positiva, mas volátil**
-
-   - Assuntos que melhoraram em agosto, mas ainda têm dias com retenção zerada,
-     indicam inconsistência operacional.
-   - Comparar dias bons vs ruins, checando relação com campanhas e sazonalidade.
-
-4. **Criar rotina de monitoramento (dashboard / alertas)**
-
-   - Acompanhar diariamente retenção por bot / canal / tópico / assunto e volume de sessões.
-   - Implementar alertas para quedas bruscas ou retenção zero em segmentos relevantes.
-        """
-    )
-
+    
 # ------------------------------------------------------------------
 # ABA 3 - QUESTÃO 3
 
@@ -440,19 +464,46 @@ with tab3:
     st.header("Questão 3 - Projeção da Retenção até o Final de 2025")
 
     st.subheader("Projeção Mensal - Setembro a Dezembro (Tendência Linear Pós-Maio)")
-    st.dataframe(df_future_trend, use_container_width=True)
+
+    st.markdown(
+         """
+Para projetar setembro a dezembro, adotamos uma abordagem baseada em **tendência linear por chatbot**, apoiada na janela mais recente de dados:
+
+- Utilizamos a série de **maio, junho, julho e agosto (já com agosto projetado)**, pois a partir de maio há uma mudança clara de patamar nos dois bots. Assim, projetamos o futuro com base no **comportamento pós-mudança**, e não no histórico antigo, que já não representa a operação atual.
+- Para cada chatbot, ajustamos uma **regressão linear simples** (linha de tendência) da retenção ao longo desses meses. Na prática, isso responde à pergunta:  
+  *“dados os últimos meses, o bot está em trajetória de alta, queda ou estabilidade?”*  
+- Em seguida, usamos essa linha de tendência para estimar os valores de **setembro, outubro, novembro e dezembro**, garantindo que os resultados permaneçam em um intervalo realista ao **limitar a retenção entre 0% e 100%**.
+
+Por que essa escolha faz sentido aqui?
+
+- Temos **poucos pontos de série histórica recente** e poucas variáveis explicativas; modelos mais complexos (como XGBoost ou redes neurais) tenderiam a superajustar (overfitting) e gerariam projeções pouco interpretáveis.
+- A regressão linear é **simples, transparente e fácil de explicar para o negócio**: mostramos claramente a inclinação da curva (se o bot está melhorando ou piorando ao longo dos meses) e como essa tendência é estendida para o fim do ano.
+- Essa abordagem não assume saltos bruscos ou comportamentos “mágicos”; ela apenas **prolonga a tendência recente**, servindo como um cenário-base. A partir dele, o time pode simular cenários alternativos (por exemplo, “e se corrigirmos Chat_C?” ou “e se ampliarmos o uso de determinada tecnologia?”).
+
+Em resumo, a projeção por tendência linear captura **para onde os bots parecem estar caminhando hoje**, usando uma metodologia simples, auditável e coerente com a quantidade de dados disponível.
+    """
+    )
 
     st.markdown(
         """
-Para projetar setembro a dezembro:
+<div class="stone-box">
+<div class="stone-badge">Resumo executivo</div>
+**Resumo executivo da questão 3:**
 
-- Utilizamos a série mais recente (maio, junho, julho + agosto projetado);
-- Ajustamos uma **tendência linear** por chatbot;
-- Projetamos os pontos correspondentes a setembro-dezembro, limitando os valores a 0-100%.
-
-Isso captura a tendência recente dos bots sem depender de suposições irreais.
-        """
+- O **BOT_A** tende a fechar 2025 em patamar acima do início do ano,
+  sustentando a recuperação pós-maio, desde que as anomalias de canal/tópico sejam endereçadas.
+- O **BOT_B** deve encerrar o ano em nível elevado de retenção, com leve acomodação após o pico de julho,
+  mas ainda acima da média histórica.
+- O indicador anual projetado resume o nível esperado de eficiência de cada bot em 2025,
+  combinando histórico, projeção de agosto e tendência dos meses futuros.
+ </div>
+        """,  
+        unsafe_allow_html=True,
     )
+    
+    st.dataframe(df_future_trend, use_container_width=True)
+
+    
 
     st.subheader("Série 2025 Completa - Real + Agosto Projetado + Projeção Futura")
     st.dataframe(df_2025_full.sort_values(["chatbot", "session_month"]),
@@ -496,16 +547,6 @@ Isso captura a tendência recente dos bots sem depender de suposições irreais.
     st.subheader("Indicador Anual Projetado - Retenção Média 2025")
     st.dataframe(df_indicador_anual, use_container_width=True)
 
-    st.markdown(
-        """
-**Resumo executivo da questão 3:**
+    
 
-- O **BOT_A** tende a fechar 2025 em patamar acima do início do ano,
-  sustentando a recuperação pós-maio, desde que as anomalias de canal/tópico sejam endereçadas.
-- O **BOT_B** deve encerrar o ano em nível elevado de retenção, com leve acomodação após o pico de julho,
-  mas ainda acima da média histórica.
-- O indicador anual projetado resume o nível esperado de eficiência de cada bot em 2025,
-  combinando histórico, projeção de agosto e tendência dos meses futuros.
-        """
-    )
 
