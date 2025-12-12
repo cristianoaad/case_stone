@@ -580,7 +580,7 @@ with tab3:
     st.subheader("Racional para desenvolvimento da projeção")
     st.markdown(
 """
-Para projetar o restante de 2025, eu não quis depender de um único modelo nem assumir uma reta infinita de crescimento ou queda. Em vez disso, construí **três visões complementares** e, no final, agreguei tudo em um **ensemble**.
+Para projetar o restante de 2025, eu não quis depender de um único modelo nem assumir uma reta infinita de crescimento ou queda. Em vez disso, construí **três visões complementares** e, no final, agreguei tudo em um **ensemble**.<br>
 Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma mudança de regime/disrupção da média (com testes de novas tecnologias, mudanças de regras de negócio etc), assumindo que se seguirá um platô a partir do observado entre Maio e Agosto.
 
 ---
@@ -645,6 +645,7 @@ Uma premisssa adotada foi a de que entre agosto e dezembro não haverá uma muda
 
     """ 
     )
+
 
 
 
