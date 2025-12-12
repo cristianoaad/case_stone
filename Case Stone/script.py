@@ -812,225 +812,292 @@ print("\n=========== PROJEÇÃO DE AGOSTO — MÉTODO HISTÓRICO (1-14 → 15-31
 print(df_projecoes.to_string(index=False))
 
 #%% Projeção para os meses de setembro a dezembro de 2025 - pergunta 3 
-# Premissa: após agosto/2025 entramos em um novo platô de operação para cada bot.
-# Vamos projetar esse platô usando o comportamento histórico dos platôs anteriores
-# (variação média mensal dentro de platô, sem novos saltos estruturais).
 
-# 1) Garantir que session_month está como string
-df_monthly_macro["session_month"] = df_monthly_macro["session_month"].astype(str)
-
-# 2) Copiar base mensal e substituir agosto/2025 pelo valor projetado (pergunta 2)
-df_trend = df_monthly_macro.copy()
-
-for _, row in df_projecoes.iterrows():
-    mask = (
-        (df_trend["chatbot"] == row["chatbot"]) &
-        (df_trend["session_month"] == "2025-08")
-    )
-    df_trend.loc[mask, "retencao_pct"] = row["retencao_proj_final_agosto"]
-
-
-# -------------------------------------------------------------------
-# Função: aprender "drift de platô" com base em TODO o histórico
-# -------------------------------------------------------------------
-import numpy as np
-
-def aprender_drift_plato(
-    df_hist: pd.DataFrame,
-    chatbot: str,
-    lim_jump: float = 1.5,      # p.p. para considerar disrupção (salto estrutural)
-    max_step_proj: float = 0.40 # p.p. máximo/mês a ser usado na projeção do platô
-) -> float:
+# %%
+def detectar_mudancas_regime(serie, threshold=2.0):
     """
-    Aprende o 'drift' típico de um platô para um chatbot, usando o histórico completo.
-
-    Passos:
-    1. Para o bot, ordena a série mensal completa de retenção.
-    2. Calcula deltas mensais.
-    3. Considera como 'disrupções' os meses em que |delta| > lim_jump.
-       Esses pontos separam os platôs.
-    4. Dentro de cada platô (entre duas disrupções), coleta os deltas mensais
-       com |delta| <= lim_jump (variação típica de platô).
-    5. Usa:
-        - magnitude média dos |deltas| de platô (tamanho do passo),
-        - sinal da média dos deltas nas bordas finais dos platôs
-          (para capturar a leve queda ou leve alta que costuma aparecer
-           antes de um novo salto).
-    6. Limita o passo mensal máximo (max_step_proj) para evitar projeções irreais.
+    Detecta mudanças significativas de regime na série temporal
+    threshold: número de desvios padrão para considerar uma mudança
     """
+    deltas = serie.diff()
+    std_delta = deltas.std()
+    mean_delta = deltas.mean()
+    
+    # Pontos onde houve mudança significativa
+    mudancas = abs(deltas - mean_delta) > (threshold * std_delta)
+    return mudancas
 
-    df_bot = (
-        df_hist[df_hist["chatbot"] == chatbot]
-        .sort_values("session_month")
-        .reset_index(drop=True)
-    )
-    vals = df_bot["retencao_pct"].values
-    n = len(vals)
-
-    if n < 4:
-        # Poucos pontos, projetar platô completamente flat
-        return 0.0
-
-    # Série de tempo (índices 0..n-1)
-    t = np.arange(n)
-
-    # Deltas mensais
-    deltas = np.diff(vals)  # tamanho n-1
-
-    # Índices de disrupção (salto estrutural de i -> i+1)
-    jump_idx = np.where(np.abs(deltas) > lim_jump)[0]
-
-    # Se não houver disrupção, usamos apenas uma regressão simples na série toda
-    if len(jump_idx) == 0:
-        a, b = np.polyfit(t, vals, 1)
-        a = float(np.clip(a, -max_step_proj, max_step_proj))
-        return a
-
-    # Define segmentos entre disrupções (cada segmento ~ um platô)
-    seg_starts = np.concatenate(([-1], jump_idx))
-    seg_ends   = np.concatenate((jump_idx, [n - 1]))
-
-    all_plateau_deltas = []
-    end_plateau_deltas = []
-
-    for s, e in zip(seg_starts, seg_ends):
-        # platô: pontos de s+1 até e
-        idx_ini = s + 1
-        idx_fim = e
-
-        if idx_fim - idx_ini < 1:
-            continue
-
-        seg_vals = vals[idx_ini:idx_fim+1]
-        seg_deltas = np.diff(seg_vals)
-        if len(seg_deltas) == 0:
-            continue
-
-        # Dentro do platô, consideramos apenas variações abaixo do limiar de disrupção
-        plateau_deltas = seg_deltas[np.abs(seg_deltas) <= lim_jump]
-        if len(plateau_deltas) == 0:
-            continue
-
-        # Todos os deltas de platô (para magnitude típica)
-        all_plateau_deltas.extend(plateau_deltas.tolist())
-
-        # Guardar os últimos 1–2 deltas do platô para entender o "final" dele
-        if len(plateau_deltas) >= 2:
-            end_plateau_deltas.extend(plateau_deltas[-2:].tolist())
-        else:
-            end_plateau_deltas.extend(plateau_deltas.tolist())
-
-    # Se não sobrou nada, drift ~ 0
-    if not all_plateau_deltas:
-        return 0.0
-
-    # Magnitude típica de variação dentro de platô
-    typical_step = float(np.mean(np.abs(all_plateau_deltas)))
-    typical_step = float(np.clip(typical_step, 0.0, max_step_proj))
-
-    # Sinal da tendência no final dos platôs (se for 0, usa sinal médio geral)
-    if end_plateau_deltas:
-        sign = np.sign(np.mean(end_plateau_deltas))
-        if sign == 0:
-            sign = np.sign(np.mean(all_plateau_deltas))
+def projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot):
+    """
+    Projeta a retenção considerando:
+    1. Identificação de regimes
+    2. Tendência do regime atual
+    3. Volatilidade histórica
+    """
+    
+    # Filtrar dados do bot
+    df_bot = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
+    df_bot['session_month'] = pd.to_datetime(df_bot['session_month'].astype(str))
+    df_bot = df_bot.sort_values('session_month')
+    
+    # Detectar mudanças de regime
+    mudancas = detectar_mudancas_regime(df_bot['retencao_pct'])
+    indices_mudanca = df_bot[mudancas].index.tolist()
+    
+    # Identificar o regime atual (após a última mudança significativa)
+    if len(indices_mudanca) > 0:
+        ultimo_regime_idx = max(indices_mudanca)
+        df_regime_atual = df_bot.loc[ultimo_regime_idx:]
     else:
-        sign = np.sign(np.mean(all_plateau_deltas))
+        # Se não houver mudanças detectadas, usar últimos 3 meses
+        df_regime_atual = df_bot.tail(3)
+    
+    # Calcular tendência do regime atual
+    if len(df_regime_atual) >= 2:
+        x = np.arange(len(df_regime_atual))
+        y = df_regime_atual['retencao_pct'].values
+        slope, intercept, r_value, p_value, std_err = stats.linregress(x, y)
+    else:
+        slope = 0
+        intercept = df_regime_atual['retencao_pct'].iloc[-1]
+    
+    # Valor base: projeção de agosto
+    valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
+    
+    # Calcular volatilidade do regime atual
+    volatilidade = df_regime_atual['retencao_pct'].std()
+    
+    # Projetar setembro a dezembro
+    meses_futuros = pd.date_range('2025-09', '2025-12', freq='M')
+    projecoes = []
+    
+    for i, mes in enumerate(meses_futuros, start=1):
+        # Projeção base: continuar tendência do regime atual
+        valor_proj = valor_agosto + (slope * i)
+        
+        # Aplicar decay na tendência (assumir que mudanças se estabilizam)
+        decay_factor = 0.8 ** i  # Reduz o impacto da tendência ao longo do tempo
+        valor_proj = valor_agosto + (slope * i * decay_factor)
+        
+        # Limitar por min/max histórico com margem
+        min_hist = df_bot['retencao_pct'].min() - volatilidade
+        max_hist = df_bot['retencao_pct'].max() + volatilidade
+        
+        valor_proj = np.clip(valor_proj, max(0, min_hist), min(100, max_hist))
+        
+        projecoes.append({
+            'chatbot': bot,
+            'session_month': mes.strftime('%Y-%m'),
+            'retencao_pct_proj': round(valor_proj, 2),
+            'metodo': 'regime_adaptativo'
+        })
+    
+    return pd.DataFrame(projecoes)
 
-    drift = typical_step * sign
-    return float(drift)
+def projetar_com_media_movel_ponderada(df_monthly_macro, df_projecoes, bot, janela=3):
+    """
+    Projeta usando média móvel ponderada dos últimos meses
+    Dá mais peso aos meses mais recentes
+    """
+    
+    df_bot = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
+    df_bot['session_month'] = pd.to_datetime(df_bot['session_month'].astype(str))
+    df_bot = df_bot.sort_values('session_month')
+    
+    # Valor base: projeção de agosto
+    valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
+    
+    # Calcular média móvel ponderada dos últimos meses
+    ultimos_valores = df_bot.tail(janela)['retencao_pct'].values
+    pesos = np.array([0.2, 0.3, 0.5])[-len(ultimos_valores):]  # Mais peso nos recentes
+    pesos = pesos / pesos.sum()  # Normalizar
+    
+    media_ponderada = np.average(ultimos_valores, weights=pesos)
+    
+    # Calcular tendência suave
+    if len(ultimos_valores) >= 2:
+        tendencia = (ultimos_valores[-1] - ultimos_valores[0]) / len(ultimos_valores)
+    else:
+        tendencia = 0
+    
+    # Projetar setembro a dezembro
+    meses_futuros = pd.date_range('2025-09', '2025-12', freq='M')
+    projecoes = []
+    
+    for i, mes in enumerate(meses_futuros, start=1):
+        # Mix entre agosto projetado e média ponderada, com tendência suave
+        peso_agosto = 0.7 * (0.9 ** i)  # Reduz importância de agosto ao longo do tempo
+        valor_proj = (valor_agosto * peso_agosto + media_ponderada * (1 - peso_agosto)) + (tendencia * i * 0.3)
+        
+        # Limitar entre 0 e 100
+        valor_proj = np.clip(valor_proj, 0, 100)
+        
+        projecoes.append({
+            'chatbot': bot,
+            'session_month': mes.strftime('%Y-%m'),
+            'retencao_pct_proj': round(valor_proj, 2),
+            'metodo': 'media_movel_ponderada'
+        })
+    
+    return pd.DataFrame(projecoes)
+
+def projetar_conservador(df_monthly_macro, df_projecoes, bot):
+    """
+    Projeção conservadora: assume estabilização no valor de agosto
+    com leve convergência para média histórica recente
+    """
+    
+    df_bot = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
+    
+    # Valor base: projeção de agosto
+    valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
+    
+    # Média dos últimos 6 meses
+    media_recente = df_bot.tail(6)['retencao_pct'].mean()
+    
+    # Projetar setembro a dezembro
+    meses_futuros = pd.date_range('2025-09', '2025-12', freq='M')
+    projecoes = []
+    
+    for i, mes in enumerate(meses_futuros, start=1):
+        # Convergência gradual para média histórica
+        peso_agosto = 0.9 ** i  # Reduz ao longo do tempo
+        valor_proj = valor_agosto * peso_agosto + media_recente * (1 - peso_agosto)
+        
+        projecoes.append({
+            'chatbot': bot,
+            'session_month': mes.strftime('%Y-%m'),
+            'retencao_pct_proj': round(valor_proj, 2),
+            'metodo': 'conservador'
+        })
+    
+    return pd.DataFrame(projecoes)
+
+# EXECUTAR PROJEÇÕES
 
 
-# -------------------------------------------------------------------
-# 3) Projeção de setembro a dezembro assumindo NOVO PLATÔ pós-agosto
-# -------------------------------------------------------------------
-meses_futuros = ["2025-09", "2025-10", "2025-11", "2025-12"]
-linhas_future = []
+# Lista de bots (assumindo que você tem a variável 'bots' definida)
+# bots = df_monthly_macro['chatbot'].unique()
+
+projecoes_finais = []
 
 for bot in bots:
-    # Histórico completo do bot (já com agosto/2025 ajustado)
-    df_bot_hist = (
-        df_trend[df_trend["chatbot"] == bot]
-        .sort_values("session_month")
-        .reset_index(drop=True)
-    )
-    vals = df_bot_hist["retencao_pct"].values
+    print(f"\n{'='*60}")
+    print(f"PROJEÇÕES PARA {bot}")
+    print(f"{'='*60}\n")
+    
+    # Método 1: Regime Adaptativo
+    proj_regime = projetar_com_regime_adaptativo(df_monthly_macro, df_projecoes, bot)
+    print("Método 1 - Regime Adaptativo:")
+    print(proj_regime[['session_month', 'retencao_pct_proj']])
+    
+    # Método 2: Média Móvel Ponderada
+    proj_mm = projetar_com_media_movel_ponderada(df_monthly_macro, df_projecoes, bot)
+    print("\nMétodo 2 - Média Móvel Ponderada:")
+    print(proj_mm[['session_month', 'retencao_pct_proj']])
+    
+    # Método 3: Conservador
+    proj_cons = projetar_conservador(df_monthly_macro, df_projecoes, bot)
+    print("\nMétodo 3 - Conservador:")
+    print(proj_cons[['session_month', 'retencao_pct_proj']])
+    
+    # Ensemble: média dos três métodos
+    proj_ensemble = proj_regime.copy()
+    proj_ensemble['retencao_pct_proj'] = (
+        proj_regime['retencao_pct_proj'] + 
+        proj_mm['retencao_pct_proj'] + 
+        proj_cons['retencao_pct_proj']
+    ) / 3
+    proj_ensemble['retencao_pct_proj'] = proj_ensemble['retencao_pct_proj'].round(2)
+    proj_ensemble['metodo'] = 'ensemble'
+    
+    print("\n*** PROJEÇÃO FINAL (Ensemble) ***:")
+    print(proj_ensemble[['session_month', 'retencao_pct_proj']])
+    
+    projecoes_finais.append(proj_ensemble)
 
-    # Valor base para projeção = agosto/2025 (projetado)
-    base_aug = df_bot_hist.loc[
-        df_bot_hist["session_month"] == "2025-08", "retencao_pct"
-    ].iloc[0]
+# Consolidar todas as projeções
+df_projecoes_finais = pd.concat(projecoes_finais, ignore_index=True)
 
-    # Drift médio de platô aprendido no histórico completo
-    drift_plato = aprender_drift_plato(df_trend, chatbot=bot)
+# ============================================================================
+# VISUALIZAÇÃO
+# ============================================================================
 
-    # Limites de segurança baseados no histórico (mantém a série em nível coerente)
-    y_min_hist = vals.min()
-    y_max_hist = vals.max()
-    lower_bound = max(0, y_min_hist - 2)   # até 2 p.p. abaixo do mínimo histórico
-    upper_bound = min(100, y_max_hist + 2) # até 2 p.p. acima do máximo histórico
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
 
-    # Projeção mês a mês, assumindo continuidade do platô pós-agosto
-    for i, mes in enumerate(meses_futuros, start=1):
-        valor = base_aug + i * drift_plato
-        valor = float(np.clip(valor, lower_bound, upper_bound))
+for idx, bot in enumerate(bots):
+    ax = axes[idx]
+    
+    # Histórico
+    df_bot_hist = df_monthly_macro[df_monthly_macro['chatbot'] == bot].copy()
+    df_bot_hist['session_month'] = pd.to_datetime(df_bot_hist['session_month'].astype(str))
+    
+    ax.plot(df_bot_hist['session_month'], df_bot_hist['retencao_pct'], 
+            marker='o', linewidth=2, label='Histórico Real')
+    
+    # Agosto projetado
+    valor_agosto = df_projecoes[df_projecoes['chatbot'] == bot]['retencao_proj_final_agosto'].iloc[0]
+    ax.plot(pd.Timestamp('2025-08'), valor_agosto, 
+            marker='o', color='orange', markersize=10, label='Agosto (Projetado)')
+    
+    # Projeções futuras
+    df_bot_proj = df_projecoes_finais[df_projecoes_finais['chatbot'] == bot].copy()
+    df_bot_proj['session_month'] = pd.to_datetime(df_bot_proj['session_month'])
+    
+    ax.plot(df_bot_proj['session_month'], df_bot_proj['retencao_pct_proj'], 
+            marker='s', linewidth=2, linestyle='--', color='red', label='Projeção Set-Dez')
+    
+    ax.set_title(f'Projeção de Retenção 2025 - {bot}', fontsize=14, fontweight='bold')
+    ax.set_xlabel('Mês')
+    ax.set_ylabel('Retenção (%)')
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    ax.tick_params(axis='x', rotation=45)
 
-        linhas_future.append({
-            "chatbot": bot,
-            "session_month": mes,
-            "retencao_pct_proj": round(valor, 2),
-        })
-
-df_future_trend = pd.DataFrame(linhas_future)
-
-print("\n=========== PROJEÇÃO SET–DEZ COM PLATÔ APRENDIDO DO HISTÓRICO ===========\n")
-print(df_future_trend.to_string(index=False))
+plt.tight_layout()
+plt.show()
 
 
-# -------------------------------------------------------------------
-# 4) Montar série 2025 completa (Real + Agosto projetado + Futuro)
-# -------------------------------------------------------------------
+# INDICADOR ANUAL 2025
 
-# Reais até JULHO/2025
+
+# Consolidar série completa de 2025
+df_2025_completo = []
+
+# Real até julho
 df_2025_real = df_monthly_macro[
-    (df_monthly_macro["session_month"].str.startswith("2025")) &
-    (df_monthly_macro["session_month"] < "2025-08")
-][["chatbot", "session_month", "retencao_pct"]].copy()
+    df_monthly_macro['session_month'].str.startswith('2025') & 
+    (df_monthly_macro['session_month'] < '2025-08')
+][['chatbot', 'session_month', 'retencao_pct']].copy()
 
-# Agosto projetado no mesmo formato
-df_ago_proj = []
+df_2025_completo.append(df_2025_real)
+
+# Agosto projetado
 for _, row in df_projecoes.iterrows():
-    df_ago_proj.append({
-        "chatbot": row["chatbot"],
-        "session_month": "2025-08",
-        "retencao_pct": row["retencao_proj_final_agosto"],
-    })
-df_ago_proj = pd.DataFrame(df_ago_proj)
+    df_2025_completo.append(pd.DataFrame([{
+        'chatbot': row['chatbot'],
+        'session_month': '2025-08',
+        'retencao_pct': row['retencao_proj_final_agosto']
+    }]))
 
-# Futuro renomeado
-df_future_trend_ren = df_future_trend.rename(
-    columns={"retencao_pct_proj": "retencao_pct"}
-)
+# Set-Dez projetados
+df_projecoes_finais_renamed = df_projecoes_finais[['chatbot', 'session_month', 'retencao_pct_proj']].copy()
+df_projecoes_finais_renamed.columns = ['chatbot', 'session_month', 'retencao_pct']
+df_2025_completo.append(df_projecoes_finais_renamed)
 
-# Série completa 2025
-df_2025_full = pd.concat(
-    [df_2025_real, df_ago_proj, df_future_trend_ren],
-    ignore_index=True,
-)
+# Consolidar
+df_2025_full = pd.concat(df_2025_completo, ignore_index=True)
 
-# -------------------------------------------------------------------
-# 5) Indicador anual – retenção média projetada em 2025 por chatbot
-# -------------------------------------------------------------------
-df_indicador_anual = (
-    df_2025_full
-    .groupby("chatbot")["retencao_pct"]
-    .mean()
-    .reset_index()
-    .rename(columns={"retencao_pct": "retencao_media_2025"})
-)
+# Calcular média anual por chatbot
+df_indicador_anual = df_2025_final.groupby('chatbot')['retencao_pct'].mean().reset_index()
+df_indicador_anual.columns = ['chatbot', 'retencao_media_2025']
+df_indicador_anual['retencao_media_2025'] = df_indicador_anual['retencao_media_2025'].round(2)
 
-print("\n=========== INDICADOR DE RETENÇÃO PROJETADO — ANO 2025 ===========\n")
+print("\n" + "="*60)
+print("INDICADOR DE RETENÇÃO PROJETADO - ANO 2025")
+print("="*60)
 print(df_indicador_anual.to_string(index=False))
-
+print("\n")
 
 
 
