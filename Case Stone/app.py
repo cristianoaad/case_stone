@@ -53,7 +53,7 @@ st.set_page_config(
 
 # CSS (aproveite o que você já tinha e adicione isso dentro)
 st.markdown(
-    """
+    f"""
     <style>
     h1, h2, h3 {{
         color: {STONE_GREEN};
@@ -76,25 +76,25 @@ st.markdown(
         margin-bottom: 0.5rem;
     }}
     
-    .profile-header {
-        background: #052011;          /* verde bem escuro, combinando com Stone */
+    .profile-header {{
+        background: #052011;
         border-left: 4px solid #00A85A;
         padding: 10px 16px;
         margin-bottom: 10px;
         color: #E6F4EC;
         font-size: 13px;
         font-family: "Roboto", "Helvetica", sans-serif;
-    }
-    .profile-header b {
+    }}
+    .profile-header b {{
         font-size: 14px;
-    }
-    .profile-header a {
+    }}
+    .profile-header a {{
         color: #3DD68C;
         text-decoration: none;
-    }
-    .profile-header a:hover {
+    }}
+    .profile-header a:hover {{
         text-decoration: underline;
-    }
+    }}
     </style>
     """,
     unsafe_allow_html=True
@@ -576,6 +576,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
