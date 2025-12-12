@@ -147,7 +147,7 @@ with tab1:
         unsafe_allow_html=True,
     )
 
-    st.subheader("Código SQL (arquivo Questao1-tabelas_fonte.sql)")
+    st.subheader("Código SQL (arquivo tabelas_fonte.sql)")
     try:
         sql_path = os.path.join(APP_DIR, "tabelas_fonte.sql")
         with open(sql_path, "r", encoding="utf-8") as f:
@@ -576,6 +576,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
