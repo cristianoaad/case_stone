@@ -203,7 +203,7 @@ with tab2:
 
         """
         <div class="stone-box">
-        <div class="stone-badge">Resumo executivo questão 2</div>
+        <div class="stone-badge">Resumo executivo questão 2 - Diagnóstico</div>
 
         <b>Estamos indo bem em agosto?</b><br>
         • No <b>geral</b>, agosto não é um mês de crise: o BOT_B continua com retenção alta e o BOT_A já mostra recuperação depois da piora entre maio e julho.<br>
@@ -236,6 +236,21 @@ with tab2:
         """,
         unsafe_allow_html=True,
     )
+
+    # 2) PROJEÇÃO DE AGOSTO
+   
+    st.subheader("Projeção de Fechamento de Agosto (por Chatbot)")
+
+    st.markdown(
+        """
+A projeção de agosto responde ao pedido **“Faça uma projeção de como fecharemos agosto”**:
+
+- Usa a retenção média observada nos **dias 1-14**;
+- Calcula um **fator histórico 1-14 → 15-31** com base em maio, junho e julho;
+- Combina os dois para estimar a **retenção projetada para o mês cheio** por chatbot.
+        """
+    )
+    st.dataframe(df_projecoes, use_container_width=True)
     
     st.subheader("Conclusão da Questão 2 - Próximos Passos Recomendados")
     st.markdown(
@@ -265,21 +280,6 @@ with tab2:
         """
     )
 
-
-    # 2) PROJEÇÃO DE AGOSTO
-   
-    st.subheader("Projeção de Fechamento de Agosto (por Chatbot)")
-
-    st.markdown(
-        """
-A projeção de agosto responde ao pedido **“Faça uma projeção de como fecharemos agosto”**:
-
-- Usa a retenção média observada nos **dias 1-14**;
-- Calcula um **fator histórico 1-14 → 15-31** com base em maio, junho e julho;
-- Combina os dois para estimar a **retenção projetada para o mês cheio** por chatbot.
-        """
-    )
-    st.dataframe(df_projecoes, use_container_width=True)
     
 # Subdivisão de apendice
     st.header("Apêndice: Racional Construído para Diagnóstico e Prescrição de Próximos Passos")
@@ -509,22 +509,36 @@ with tab3:
     st.subheader("Projeção Mensal - Setembro a Dezembro (Tendência Linear Pós-Maio)")
     
     st.markdown(
-         """
-Para projetar setembro a dezembro, adotamos uma abordagem baseada em **tendência linear por chatbot**, apoiada na janela mais recente de dados:
+"""
+Para projetar setembro a dezembro, foi adotado uma abordagem de **tendência linear por chatbot**, usando a janela mais recente de dados e controlando o peso dos últimos meses para evitar projeções irreais:
 
-- Utilizamos a série de **maio, junho, julho e agosto (já com agosto projetado)**, pois a partir de maio há uma mudança clara de patamar nos dois bots. Assim, projetamos o futuro com base no **comportamento pós-mudança**, e não no histórico antigo, que já não representa a operação atual.
-- Para cada chatbot, ajustamos uma **regressão linear simples** (linha de tendência) da retenção ao longo desses meses. Na prática, isso responde à pergunta:  
-  *“dados os últimos meses, o bot está em trajetória de alta, queda ou estabilidade?”*  
-- Em seguida, usamos essa linha de tendência para estimar os valores de **setembro, outubro, novembro e dezembro**, garantindo que os resultados permaneçam em um intervalo realista ao **limitar a retenção entre 0% e 100%**.
+- A série de **maio, junho, julho e agosto (já com agosto projetado)** foi selecionada como ponto de partida, pois a partir de maio há uma mudança clara de patamar para os dois bots (evidenciando alguma mudança tecnológica ou de negócio). Assim, projetamos o futuro com base no **comportamento pós-mudança**, em vez de usar o histórico antigo, que já não representa a operação atual.
 
-Por que essa escolha faz sentido aqui?
+- Para cada chatbot, foi ajustada uma **regressão linear simples** sobre esses meses, respondendo de forma objetiva à pergunta:  
+  *“dado o comportamento recente, este bot está em trajetória de alta, queda ou estabilidade?”*
 
-- Temos **poucos pontos de série histórica recente** e poucas variáveis explicativas; modelos mais complexos (como XGBoost ou redes neurais) tenderiam a superajustar (overfitting) e gerariam projeções pouco interpretáveis.
-- A regressão linear é **simples, transparente e fácil de explicar para o negócio**: mostramos claramente a inclinação da curva (se o bot está melhorando ou piorando ao longo dos meses) e como essa tendência é estendida para o fim do ano.
-- Essa abordagem não assume saltos bruscos ou comportamentos “mágicos”; ela apenas **prolonga a tendência recente**, servindo como um cenário-base. A partir dele, o time pode simular cenários alternativos (por exemplo, “e se corrigirmos Chat_C?” ou “e se ampliarmos o uso de determinada tecnologia?”).
+- A inclinação dessa reta (quanto a retenção cresce ou cai mês a mês) é então **amortecida**:
+  - reduzimos parcialmente o “peso” da inclinação recente (damping),  
+  - e limitamos a variação máxima permitida em pontos percentuais por mês.  
+  Isso evita cenários pouco críveis, como retenções se aproximando rapidamente de 100% ou caindo de forma abrupta, visto que ao analisar evidências históricas a taxa de retenção se mostra suavemente constante e lateralizada, salvo quando mudanças estruturais são aplicadas.
 
-Em resumo, a projeção por tendência linear captura **para onde os bots parecem estar caminhando hoje**, usando uma metodologia simples, auditável e coerente com a quantidade de dados disponível.
-    """
+- A reta ajustada é **ancorada no valor mais recente** (agosto projetado), garantindo uma transição suave entre o dado observado (histórico recente) e a projeção. A partir dessa ancoragem, foi estimado os valores de **setembro, outubro, novembro e dezembro**.
+
+
+Motivos que embasam a decisão dessa abordagem:
+
+- Temos **poucos pontos de série histórica** e poucas variáveis explicativas. Modelos mais complexos (XGBoost, redes neurais etc.) tenderiam a superajustar o ruído (overfitting) e produziriam resultados difíceis de explicar para o negócio.
+
+- Projeções diárias se mostraram inviáveis devido a altíssima volatilidade dos resultados, com diversos casos que alternam performances entre retenção zero e retenção elevada.
+
+- A regressão linear com amortecimento é **simples, transparente e comunicável**: é possível mostrar claramente a direção da curva (se o bot está melhorando, piorando ou estabilizando) e justificar como essa tendência foi prolongada até o fim do ano, sem extrapolações agressivas.
+
+- A abordagem funciona como um **cenário-base conservador**: projeta o que deve acontecer se nada muito diferente for feito. A partir desse baseline, o time pode simular cenários de melhoria, por exemplo:  
+  *“Quanto a retenção anual subiria se corrigirmos o problema de Chat_C?”* ou  
+  *“Qual o impacto de consolidar as melhores práticas dos tópicos com performance positiva?”*
+
+Em resumo, a projeção por tendência linear com controle de inclinação captura **para onde os bots parecem estar caminhando hoje**, usando uma metodologia simples, auditável e coerente com o volume e a qualidade de dados disponíveis.
+"""
     )
     
     st.dataframe(df_future_trend, use_container_width=True)
@@ -574,6 +588,7 @@ Em resumo, a projeção por tendência linear captura **para onde os bots parece
     st.dataframe(df_indicador_anual, use_container_width=True)
 
     
+
 
 
 
