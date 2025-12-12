@@ -613,9 +613,10 @@ Eu decidi **não** usar uma regressão linear simples por alguns motivos:
     *“e se eu resolver o problema de Chat_C?”* etc.
 
 Em resumo, eu projetei setembro–dezembro assumindo que **agosto inaugura um novo platô** e que esse platô tende a se comportar de forma parecida com os anteriores do mesmo bot, com pequenos ajustes mensais em vez de uma reta artificial de alta ou queda.
+    """ 
     )
 
-"""
+
 
 
 
